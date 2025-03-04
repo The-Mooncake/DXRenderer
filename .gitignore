@@ -3,3 +3,7 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+/DXRenderer/Debug
+/Debug
+/DXRenderer/x64
+/x64
