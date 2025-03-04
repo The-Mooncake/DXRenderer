@@ -1,32 +1,62 @@
 #include "MainWindow.h"
 
+// Windows
 #include <cstdio>
 #include <tchar.h>
+#include <wrl.h> // ComPtr
 
+// D3D
+#include <d3d12.h>
+#include <d3dcommon.h>
+#include <DirectXMath.h>
+#include <dxgi.h>
+#include <dxcapi.h>
+#include <dxgi1_6.h>
+#include <dxgi1_3.h>
+#include <vector>
 
-// Default Message class, forwards to main app class.
-LRESULT CALLBACK WndProcForward(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_CLOSE:
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return  G_MainWindow->MessageLoop(hWnd, message, wParam, lParam);
-        break;
-    }
+#pragma comment(lib, "dxgi") // For CreateDXGIFactory2 linker error.
 
-    return 0;
-}
+// Namespaces
+using namespace Microsoft::WRL;
+using namespace DirectX;
+
+// Useful documentation examples:
+// https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/Samples/Desktop/D3D12HelloWorld/src/HelloGenericPrograms
+// https://learn.microsoft.com/en-us/windows/win32/direct3dgetstarted/work-with-dxgi
+// https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide
+// https://www.rastertek.com/tutdx11win10.html
+
 
 MainWindow::MainWindow(HINSTANCE InHInstance)
 {
-    hInstance = InHInstance; 
+    hInstance = InHInstance;
+
+
+    UINT dxgiFactoryFlags = 0;
+    ComPtr<IDXGIFactory7> Factory;
+    CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&Factory));
+
+    
+    UINT i = 0;
+    ComPtr<IDXGIAdapter1> Adapter;
+    DXGI_ADAPTER_DESC1 AdapterDesc;
+    while (Factory->EnumAdapters1(i, &Adapter) != DXGI_ERROR_NOT_FOUND)
+    {
+        Adapter.Get()->GetDesc1(&AdapterDesc);
+        if (AdapterDesc.VendorId == 4318) // NVIDIA Vendor ID !VERY HACKY! 
+        {
+            break;
+        }
+        ++i;
+    }
+
+    ComPtr<ID3D12Device14> Device;
+    //HRESULT hr = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_2, IID_PPV_ARGS(&Device));
+    
 }
 
-LRESULT MainWindow::MessageLoop(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
     HDC hdc;
@@ -34,6 +64,11 @@ LRESULT MainWindow::MessageLoop(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
     
     switch (message)
     {
+    case WM_CLOSE:
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+        
     case WM_PAINT:
         hdc = BeginPaint(hWnd, &ps);
 
@@ -42,7 +77,7 @@ LRESULT MainWindow::MessageLoop(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
         // in the top left corner.
         TextOut(hdc,
            5, 5,
-           greeting, _tcslen(greeting));
+           greeting, static_cast<int>(_tcslen(greeting)));
         // End application-specific layout section.
 
         EndPaint(hWnd, &ps);
@@ -67,7 +102,7 @@ int MainWindow::Run()
     WNDCLASSEX wcex;
     wcex.cbSize         = sizeof(WNDCLASSEX);
     wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProcForward;
+    wcex.lpfnWndProc    = MainWindow::WinProcedure;
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
