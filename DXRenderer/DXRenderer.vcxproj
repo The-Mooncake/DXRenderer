@@ -76,7 +76,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>dxguid.lib;d3d12.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -106,6 +106,7 @@
   <ItemGroup>
     <ClCompile Include="DXRenderer.cpp" />
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="Shaders.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />

@@ -21,6 +21,7 @@
     <ClCompile Include="MainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Shaders.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h">
