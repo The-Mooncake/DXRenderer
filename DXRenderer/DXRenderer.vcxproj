@@ -106,7 +106,10 @@
   <ItemGroup>
     <ClCompile Include="DXRenderer.cpp" />
     <ClCompile Include="MainWindow.cpp" />
-    <ClCompile Include="Shaders.hlsl" />
+    <Text Include="Shaders.hlsl">
+      <FileType>Document</FileType>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />
