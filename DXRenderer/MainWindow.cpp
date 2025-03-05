@@ -365,14 +365,16 @@ void MainWindow::Render()
     // Reset render queue.
     CmdAllocator->Reset();
     CmdList->Reset(CmdAllocator.Get(), nullptr);
-    
-    
+
+    // Clear RTs
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f };
     D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHandle.ptr = RtvHandle.ptr + (0 * RtvHeapOffsetSize); 
     CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
 
-    CmdList->RSSetViewports(1, &Viewport);
+    //CmdList->RSSetViewports(1, &Viewport);
+
+    // Finalise command list and queues.
     CmdList->Close();
     
     ID3D12CommandList* const CmdLists[] = {
