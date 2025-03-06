@@ -2,6 +2,8 @@
 
 #include <windows.h>
 #include <wrl/client.h>
+#include <stdlib.h>
+#include <vector>
 
 // DX
 #include <d3dcommon.h>
@@ -39,7 +41,7 @@ private:
     ComPtr<ID3D12CommandQueue> CmdQueue;
     ComPtr<ID3D12CommandAllocator> CmdAllocator;
     ComPtr<ID3D12GraphicsCommandList> CmdList;
-    ComPtr<IDXGISwapChain1> SwapChain;
+    ComPtr<IDXGISwapChain4> SwapChain;
     ComPtr<ID3D12PipelineState> PipelineState;
     D3D12_VIEWPORT Viewport;
     
@@ -48,11 +50,11 @@ private:
     
     
     // Buffers
-    ComPtr<ID3D12DescriptorHeap> RtvHeap;
+    ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
     UINT RtvHeapOffsetSize = 0;
-    UINT FrameCount = 2; // Currently only two buffers
-    ComPtr<ID3D12Resource> BackBuffer;
-    ComPtr<ID3D12Resource> FrontBuffer;
+    UINT FrameBufferCount = 2; // Currently only two buffers
+    std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
+    UINT CurrentBackBuffer = 0;
 
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;

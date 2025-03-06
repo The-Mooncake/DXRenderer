@@ -16,6 +16,7 @@
 #include <dxgi1_3.h>
 #include <vector>
 
+
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 615; } 
@@ -254,32 +255,32 @@ void MainWindow::SetupRendering()
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     //desc.Flags = DXGI_PRESENT_RESTART;
     
-     // Might need to use CreateSwapChainForCoreWindow || CreateSwapchainForComposition...
-     HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &SwapChain);
-     if (FAILED(HR))
-     {
-         printf("Failed to create swap chain.\n");
-         PostQuitMessage(1);
-         return;
-     }
-
+    // Might need to use CreateSwapChainForCoreWindow || CreateSwapchainForComposition...
+    ComPtr<IDXGISwapChain1> BaseSwapChain;
+    HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &BaseSwapChain);
+    if (FAILED(HR))
+    {
+        printf("Failed to create swap chain.\n");
+        PostQuitMessage(1);
+        return;
+    }
+    BaseSwapChain.As(&SwapChain); // To SwapChain4.
+    
     SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    
-    
     // RTV Heaps
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.NumDescriptors = FrameCount;
+    rtvHeapDesc.NumDescriptors = FrameBufferCount;
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    HR = Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&RtvHeap));
+    HR = Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&FrameBufferHeap));
     if (FAILED(HR))
     {
         printf("Failed to create rtv heap.\n");
         PostQuitMessage(1);
         return;
     }
-    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(RtvHeap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     
     // Create Buffer Resources.
@@ -287,41 +288,43 @@ void MainWindow::SetupRendering()
     rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-    // Back buffer
-    SwapChain->GetBuffer(0, IID_PPV_ARGS(&BackBuffer));
-    Device->CreateRenderTargetView(BackBuffer.Get(), &rtvDesc, BufferHandle);
+    // Swap chain rtv setup.
+    FrameBuffers.resize(FrameBufferCount);
+    for (int Idx = 0; Idx < FrameBufferCount; Idx++)
+    {
+        ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
+        SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
+        Device->CreateRenderTargetView(Buffer.Get(), &rtvDesc, BufferHandle);
 
-    // Front Buffer
-    BufferHandle.ptr += RtvHeapOffsetSize; // Offset by one.  
-    SwapChain->GetBuffer(1, IID_PPV_ARGS(&FrontBuffer));
-    Device->CreateRenderTargetView(FrontBuffer.Get(), &rtvDesc, BufferHandle);
-
-
+        // Offset Buffer Handle
+        BufferHandle.ptr += RtvHeapOffsetSize;
+    }
+    
     // Load and Compile shaders...
-    // UINT compileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
-    // HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &VS, nullptr);
-    // if (FAILED(HR))
-    // {
-    //     printf("Failed to compile vertex shaders.\n");
-    //     PostQuitMessage(1);
-    //     return;
-    // }
-    // HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &PS, nullptr);
-    // if (FAILED(HR))
-    // {
-    //     printf("Failed to compile pixel shaders.\n");
-    //     PostQuitMessage(1);
-    //     return;
-    // }
-    //
-    // // Define the vertex input layout.
-    // D3D12_INPUT_ELEMENT_DESC InElementDesc[] =
-    // {
-    //     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    //     { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    // };
-    //
-    // // Root Signature
+    UINT compileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
+    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &VS, nullptr);
+    if (FAILED(HR))
+    {
+        printf("Failed to compile vertex shaders.\n");
+        PostQuitMessage(1);
+        return;
+    }
+    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &PS, nullptr);
+    if (FAILED(HR))
+    {
+        printf("Failed to compile pixel shaders.\n");
+        PostQuitMessage(1);
+        return;
+    }
+    
+    // Define the vertex input layout.
+    D3D12_INPUT_ELEMENT_DESC InElementDesc[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    
+    // Root Signature
     // ComPtr<ID3D12RootSignature> RootSig;
     // HR = Device->CreateRootSignature(0, 0, 0, IID_PPV_ARGS(&RootSig));
     // if (FAILED(HR))
@@ -368,10 +371,11 @@ void MainWindow::Render()
 
     // Clear RTs
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f };
-    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHandle.ptr = RtvHandle.ptr + (0 * RtvHeapOffsetSize); 
+    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    RtvHandle.ptr = RtvHandle.ptr + (CurrentBackBuffer * RtvHeapOffsetSize); 
     CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
 
+    
     //CmdList->RSSetViewports(1, &Viewport);
 
     // Finalise command list and queues.
@@ -387,8 +391,13 @@ void MainWindow::Render()
     HR = SwapChain->Present(1, 0); //, &dxgiParams);
     if (FAILED(HR))
     {
-        printf("Failed to present!\n");
+        assert(false && "Failed to present swap chain!");
+        //printf("Failed to present!\n");
     }
+
+
+    // Update index.
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }
 
 
