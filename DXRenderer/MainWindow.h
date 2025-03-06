@@ -56,21 +56,23 @@ private:
     void Render();
 
     // Setup Helpers
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateMeshPipelineDesc();
+    void CreateMeshPipeline();
     void SetupRootSignature();
-
+    void WaitForPreviousFrame();
     
     
     // Tri Data...
+    float AspectRatio = 600.0 / 400.0;
     uint32_t TriIndexBufferData[3] = {0, 1, 2};
-    Vertex VertexBufferData[3] = {{{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                                  {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                                  {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+    Vertex VertexBufferData[3] = {{{0.0f, 0.25f * AspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f}},
+                                  {{0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f}},
+                                  {{-0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     
     // Render State
     bool bDXReady = false;
 
     // DX resources.
+    ComPtr<ID3D12Debug> DebugController;
     ComPtr<IDXGIFactory7> Factory;
     ComPtr<IDXGIAdapter1> Adapter;
     ComPtr<ID3D12Device7> Device;

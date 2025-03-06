@@ -23,7 +23,7 @@ VS_OUTPUT VSMain(VS_INPUT In)
 {
     VS_OUTPUT Out;
     Out.Position = float4(In.Position, 0.0f);
-    Out.Colour = float3(0.65f, 0.65f, 0.65f);
+    Out.Colour = In.Colour;
     return Out;
 }
 

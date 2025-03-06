@@ -80,6 +80,11 @@ void MainWindow::SetupDevice()
 {
     HRESULT HR;
 
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&DebugController))))
+    {
+        DebugController->EnableDebugLayer();
+    }
+
     // Setup DX Factory
     HR = CreateDXGIFactory1(IID_PPV_ARGS(&Factory));
     if (FAILED(HR))
@@ -136,6 +141,7 @@ void MainWindow::SetupDevice()
         PostQuitMessage(1);
         return;
     }
+    CmdList->Close();
 
     // Setup the events.
     HR = Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
@@ -217,7 +223,7 @@ void MainWindow::SetupWindow()
     Viewport.MaxDepth = 100.0f;
 }
 
-D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreateMeshPipelineDesc()
+void MainWindow::CreateMeshPipeline()
 {
     D3D12_INPUT_ELEMENT_DESC InElementDesc[] =  // Define the vertex input layout.
     {
@@ -253,11 +259,16 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreateMeshPipelineDesc()
     PipeStateDesc.DepthStencilState.StencilEnable = FALSE;
     PipeStateDesc.SampleMask = UINT_MAX;
     PipeStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    PipeStateDesc.NumRenderTargets = FrameBufferCount;
+    PipeStateDesc.NumRenderTargets = 1;
     PipeStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // Probably should iterate through.
     PipeStateDesc.SampleDesc.Count = 1;
 
-    return PipeStateDesc;
+    HRESULT HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
+    if (FAILED(HR))
+    {
+        printf("Failed to create graphics pipeline.\n");
+        PostQuitMessage(1);
+    }
 }
 
 void MainWindow::SetupRootSignature()
@@ -368,7 +379,11 @@ void MainWindow::SetupMeshPipeline()
     HRESULT HR;
     
     // Load and Compile shaders...
-    UINT CompileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
+#if defined(_DEBUG)
+    UINT CompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT CompileFlags = 0; 
+#endif
     HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", CompileFlags, 0, &VS, nullptr);
     if (FAILED(HR))
     {
@@ -388,18 +403,11 @@ void MainWindow::SetupMeshPipeline()
     SetupRootSignature();
     
     // Create Pipeline State
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = CreateMeshPipelineDesc();
-    HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
-    if (FAILED(HR))
-    {
-        printf("Failed to create graphics pipeline.\n");
-        PostQuitMessage(1);
-        return;
-    }
+    CreateMeshPipeline();
 
     // Setup buffers.
-    MeshConstantBuffer();
-    MeshIndexBuffer();
+    //MeshConstantBuffer();
+    //MeshIndexBuffer();
     MeshVertexBuffer();
 }
 
@@ -537,6 +545,11 @@ void MainWindow::MeshVertexBuffer()
     VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
     VertexBufferView.StrideInBytes = sizeof(Vertex);
     VertexBufferView.SizeInBytes = VertexBufferSize;
+
+    Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
+    FenceValue = 1;
+    FenceEvent = CreateEvent(nullptr, false, false, nullptr);
+    WaitForPreviousFrame();
 }
 
 void MainWindow::MeshIndexBuffer()
@@ -615,33 +628,59 @@ void MainWindow::Render()
     CmdList->Reset(CmdAllocator.Get(), nullptr);
 
     CmdList->SetGraphicsRootSignature(RootSig.Get());
+    CmdList->SetPipelineState(PipelineState.Get());
+    
     CmdList->RSSetViewports(1, &Viewport);
     D3D12_RECT ScissorRect{};
     ScissorRect.bottom = 400;
     ScissorRect.right = 600;
     CmdList->RSSetScissorRects(1, &ScissorRect);
     
-    ID3D12DescriptorHeap* DescriptorHeaps[] = {ConstantBufferHeap};
-    CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps);
-    D3D12_GPU_DESCRIPTOR_HANDLE CbHandle(ConstantBufferHeap->GetGPUDescriptorHandleForHeapStart());
-    CmdList->SetGraphicsRootDescriptorTable(0, CbHandle);
+
+    //ID3D12DescriptorHeap* DescriptorHeaps[] = {ConstantBufferHeap};
+    //CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps);
+    //D3D12_GPU_DESCRIPTOR_HANDLE CbHandle(ConstantBufferHeap->GetGPUDescriptorHandleForHeapStart());
+    //CmdList->SetGraphicsRootDescriptorTable(0, CbHandle);
     
-    // Clear RTs
-    FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
+    // Clear Backbuffer...
     
+    // Indicate that the back buffer will be used as a render target.
+    D3D12_RESOURCE_BARRIER RtBarrier;
+    RtBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    RtBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    RtBarrier.Transition.pResource = FrameBuffers.at(CurrentBackBuffer).Get();
+    RtBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    RtBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    RtBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    CmdList->ResourceBarrier(1, &RtBarrier);
+
     D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
-    CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
-
     CmdList->OMSetRenderTargets(1, &RtvHandle, TRUE, nullptr);
+    
+
+    // Clear Backbuffer
+    FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
+    CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
     
     // Mesh rendering
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     CmdList->IASetVertexBuffers(0, 1, &VertexBufferView);
-    CmdList->IASetIndexBuffer(&IndexBufferView);
+    //CmdList->IASetIndexBuffer(&IndexBufferView);
 
     CmdList->DrawIndexedInstanced(3, 1, 0 ,0, 0);
     
+    D3D12_RESOURCE_BARRIER PresentBarrier;
+    PresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    PresentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    PresentBarrier.Transition.pResource = FrameBuffers.at(CurrentBackBuffer).Get();
+    PresentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    PresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    PresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+    CmdList->ResourceBarrier(1, &PresentBarrier);
+
+
     // Finalise command list and queues.
     CmdList->Close();
 
@@ -664,11 +703,12 @@ void MainWindow::Render()
     CmdQueue->Signal(Fence.Get(), CurrentFenceValue);
     FenceValue++;
 
-    if (Fence->GetCompletedValue() < CurrentFenceValue)
-    {
-        Fence->SetEventOnCompletion(CurrentFenceValue, FenceEvent);
-        WaitForSingleObject(FenceEvent, INFINITE);
-    }
+    //if (Fence->GetCompletedValue() < CurrentFenceValue)
+    //{
+    //    Fence->SetEventOnCompletion(CurrentFenceValue, FenceEvent);
+    //    WaitForSingleObject(FenceEvent, INFINITE);
+    //}
+    WaitForPreviousFrame();
 
     // Update index.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
@@ -710,4 +750,21 @@ int MainWindow::Run()
     }
 
     return static_cast<int>(msg.wParam);
+}
+
+void MainWindow::WaitForPreviousFrame()
+{
+    // Signal and increment the fence value.
+    const UINT64 CurrentFence = FenceValue;
+    (CmdQueue->Signal(Fence.Get(), CurrentFence));
+    FenceValue++;
+
+    // Wait until the previous frame is finished.
+    if (Fence->GetCompletedValue() < CurrentFence)
+    {
+        Fence->SetEventOnCompletion(CurrentFence, FenceEvent);
+        WaitForSingleObject(FenceEvent, INFINITE);
+    }
+
+    CurrentBackBuffer= SwapChain->GetCurrentBackBufferIndex();
 }
