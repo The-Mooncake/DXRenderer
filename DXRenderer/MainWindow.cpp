@@ -44,7 +44,11 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
     
     SetupDevice();
     SetupWindow();
-    SetupRendering();
+    SetupSwapChain();
+    SetupMeshPipeline();
+       
+    // DX Setup correctly.
+    bDXReady = true;
 }
 
 LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -213,7 +217,7 @@ void MainWindow::SetupWindow()
     Viewport.MaxDepth = 100.0f;
 }
 
-D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreatePipelineDesc()
+D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreateMeshPipelineDesc()
 {
     D3D12_INPUT_ELEMENT_DESC InElementDesc[] =  // Define the vertex input layout.
     {
@@ -256,7 +260,6 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreatePipelineDesc()
     return PipeStateDesc;
 }
 
-
 void MainWindow::SetupRootSignature()
 {
     D3D12_DESCRIPTOR_RANGE1 RtvDescRanges[1];
@@ -297,7 +300,7 @@ void MainWindow::SetupRootSignature()
     SigBlob->Release();
 }
 
-void MainWindow::SetupRendering()
+void MainWindow::SetupSwapChain()
 {
     HRESULT HR;
 
@@ -358,6 +361,11 @@ void MainWindow::SetupRendering()
         // Offset Buffer Handle
         BufferHandle.ptr += RtvHeapOffsetSize;
     }
+}
+
+void MainWindow::SetupMeshPipeline()
+{
+    HRESULT HR;
     
     // Load and Compile shaders...
     UINT CompileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
@@ -380,7 +388,7 @@ void MainWindow::SetupRendering()
     SetupRootSignature();
     
     // Create Pipeline State
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = CreatePipelineDesc();
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = CreateMeshPipelineDesc();
     HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
     if (FAILED(HR))
     {
@@ -388,14 +396,214 @@ void MainWindow::SetupRendering()
         PostQuitMessage(1);
         return;
     }
+
+    // Setup buffers.
+    MeshConstantBuffer();
+    MeshIndexBuffer();
+    MeshVertexBuffer();
+}
+
+void MainWindow::MeshConstantBuffer()
+{
+    HRESULT HR;
     
-    // DX Setup correctly.
-    bDXReady = true;
+    // Declare Handles
+    ID3D12Resource* ConstantBuffer;
+    UINT8* MappedConstantBuffer;
+
+    // Create the Constant Buffer
+
+    D3D12_HEAP_PROPERTIES HeapProps;
+    HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapProps.CreationNodeMask = 1;
+    HeapProps.VisibleNodeMask = 1;
+
+    D3D12_DESCRIPTOR_HEAP_DESC HeapDesc = {};
+    HeapDesc.NumDescriptors = 1;
+    HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    HeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    HR = Device->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&ConstantBufferHeap));
+    if (FAILED(HR))
+    {
+        printf("Failed to create constant buffer descriptor heap.\n");
+        PostQuitMessage(1);
+        return;
+    }
+
+    D3D12_RESOURCE_DESC CbResourceDesc;
+    CbResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    CbResourceDesc.Alignment = 0;
+    CbResourceDesc.Width = (sizeof(WVP) + 255) & ~255;
+    CbResourceDesc.Height = 1;
+    CbResourceDesc.DepthOrArraySize = 1;
+    CbResourceDesc.MipLevels = 1;
+    CbResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    CbResourceDesc.SampleDesc.Count = 1;
+    CbResourceDesc.SampleDesc.Quality = 0;
+    CbResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    CbResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    HR = Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &CbResourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ConstantBuffer));
+    if (FAILED(HR))
+    {
+        printf("Failed to create constant buffer.\n");
+        PostQuitMessage(1);
+        return;
+    }
+    ConstantBufferHeap->SetName(L"Constant Buffer Upload Resource Heap");
+
+    // Create our Constant Buffer View
+    D3D12_CONSTANT_BUFFER_VIEW_DESC CbvDesc = {};
+    CbvDesc.BufferLocation = ConstantBuffer->GetGPUVirtualAddress();
+    CbvDesc.SizeInBytes = (sizeof(WVP) + 255) & ~255; // CB size is required to be 256-byte aligned.
+
+    D3D12_CPU_DESCRIPTOR_HANDLE CbvHandle(ConstantBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    CbvHandle.ptr = CbvHandle.ptr + Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
+    Device->CreateConstantBufferView(&CbvDesc, CbvHandle);
+
+    // We do not intend to read from this resource on the CPU.
+    D3D12_RANGE ReadRange;
+    ReadRange.Begin = 0;
+    ReadRange.End = 0;
+
+    HR = ConstantBuffer->Map(0, &ReadRange, reinterpret_cast<void**>(&MappedConstantBuffer));
+    if (FAILED(HR))
+    {
+        printf("Failed to map constant buffer.\n");
+        PostQuitMessage(1);
+        return;
+    }
+    memcpy(MappedConstantBuffer, &WVP, sizeof(WVP));
+    ConstantBuffer->Unmap(0, &ReadRange);
+}
+
+void MainWindow::MeshVertexBuffer()
+{
+    HRESULT HR;
+    
+    ID3D12Resource* VertexBuffer;
+    const UINT VertexBufferSize = sizeof(VertexBufferData);
+
+    D3D12_HEAP_PROPERTIES HeapProps;
+    HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapProps.CreationNodeMask = 1;
+    HeapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC VertexBufferResourceDesc;
+    VertexBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    VertexBufferResourceDesc.Alignment = 0;
+    VertexBufferResourceDesc.Width = VertexBufferSize;
+    VertexBufferResourceDesc.Height = 1;
+    VertexBufferResourceDesc.DepthOrArraySize = 1;
+    VertexBufferResourceDesc.MipLevels = 1;
+    VertexBufferResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    VertexBufferResourceDesc.SampleDesc.Count = 1;
+    VertexBufferResourceDesc.SampleDesc.Quality = 0;
+    VertexBufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    VertexBufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    HR = Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &VertexBufferResourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&VertexBuffer));
+    if (FAILED(HR))
+    {
+        printf("Failed to create vertex buffer.\n");
+        PostQuitMessage(1);
+        return;
+    }
+
+    // Copy the triangle data to the vertex buffer.
+    UINT8* VertexDataBegin;
+
+    // We do not intend to read from this resource on the CPU.
+    D3D12_RANGE ReadRange;
+    ReadRange.Begin = 0;
+    ReadRange.End = 0;
+
+    HR = VertexBuffer->Map(0, &ReadRange, reinterpret_cast<void**>(&VertexDataBegin));
+    if (FAILED(HR))
+    {
+        printf("Failed to map vertex buffer.\n");
+        PostQuitMessage(1);
+    }
+    memcpy(VertexDataBegin, VertexBufferData, sizeof(VertexBufferData));
+    VertexBuffer->Unmap(0, nullptr);
+
+    // Initialize the vertex buffer view.
+    VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
+    VertexBufferView.StrideInBytes = sizeof(Vertex);
+    VertexBufferView.SizeInBytes = VertexBufferSize;
+}
+
+void MainWindow::MeshIndexBuffer()
+{
+    HRESULT HR;
+    
+    // Declare Handles
+    ID3D12Resource* IndexBuffer;
+    const UINT IndexBufferSize = sizeof(TriIndexBufferData);
+
+    D3D12_HEAP_PROPERTIES HeapIndexProps;
+    HeapIndexProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    HeapIndexProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapIndexProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapIndexProps.CreationNodeMask = 1;
+    HeapIndexProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC IndexBufferResourceDesc;
+    IndexBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    IndexBufferResourceDesc.Alignment = 0;
+    IndexBufferResourceDesc.Width = IndexBufferSize;
+    IndexBufferResourceDesc.Height = 1;
+    IndexBufferResourceDesc.DepthOrArraySize = 1;
+    IndexBufferResourceDesc.MipLevels = 1;
+    IndexBufferResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    IndexBufferResourceDesc.SampleDesc.Count = 1;
+    IndexBufferResourceDesc.SampleDesc.Quality = 0;
+    IndexBufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    IndexBufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    HR = Device->CreateCommittedResource(
+        &HeapIndexProps, D3D12_HEAP_FLAG_NONE, &IndexBufferResourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&IndexBuffer));
+    if (FAILED(HR))
+    {
+        printf("Failed to create index buffer\n");
+        PostQuitMessage(1);
+        return;
+    }
+
+    // Copy data to DirectX 12 driver memory:
+    UINT8* pVertexDataBegin;
+
+    // We do not intend to read from this resource on the CPU.
+    D3D12_RANGE IdxReadRange;
+    IdxReadRange.Begin = 0;
+    IdxReadRange.End = 0;
+    
+    HR = IndexBuffer->Map(0, &IdxReadRange, reinterpret_cast<void**>(&pVertexDataBegin));
+    if (FAILED(HR))
+    {
+        printf("Failed to Map index buffer\n");
+        PostQuitMessage(1);
+        return;
+    }
+    memcpy(pVertexDataBegin, TriIndexBufferData, sizeof(TriIndexBufferData));
+    IndexBuffer->Unmap(0, nullptr);
+
+    // 👀 Initialize the index buffer view.
+    IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
+    IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    IndexBufferView.SizeInBytes = IndexBufferSize;
 }
 
 void MainWindow::UpdateRender()
 {
-    
+    // Update things like camera pos and view, etc... 
 }
 
 void MainWindow::Render()
@@ -406,6 +614,18 @@ void MainWindow::Render()
     CmdAllocator->Reset();
     CmdList->Reset(CmdAllocator.Get(), nullptr);
 
+    CmdList->SetGraphicsRootSignature(RootSig.Get());
+    CmdList->RSSetViewports(1, &Viewport);
+    D3D12_RECT ScissorRect{};
+    ScissorRect.bottom = 400;
+    ScissorRect.right = 600;
+    CmdList->RSSetScissorRects(1, &ScissorRect);
+    
+    ID3D12DescriptorHeap* DescriptorHeaps[] = {ConstantBufferHeap};
+    CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps);
+    D3D12_GPU_DESCRIPTOR_HANDLE CbHandle(ConstantBufferHeap->GetGPUDescriptorHandleForHeapStart());
+    CmdList->SetGraphicsRootDescriptorTable(0, CbHandle);
+    
     // Clear RTs
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     
@@ -413,6 +633,15 @@ void MainWindow::Render()
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
     CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
 
+    CmdList->OMSetRenderTargets(1, &RtvHandle, TRUE, nullptr);
+    
+    // Mesh rendering
+    CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    CmdList->IASetVertexBuffers(0, 1, &VertexBufferView);
+    CmdList->IASetIndexBuffer(&IndexBufferView);
+
+    CmdList->DrawIndexedInstanced(3, 1, 0 ,0, 0);
+    
     // Finalise command list and queues.
     CmdList->Close();
 

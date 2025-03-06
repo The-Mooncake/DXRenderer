@@ -9,11 +9,27 @@
 #include <d3dcommon.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <DirectXMath.h>
 
 // Global ptr to the main window instance.
 static class MainWindow* G_MainWindow = nullptr;
 
-using  Microsoft::WRL::ComPtr;
+using Microsoft::WRL::ComPtr; // Import only the ComPtr
+
+
+// ConstBuffer
+struct CB_WVP
+{
+    DirectX::XMFLOAT4X4 ProjectionMatrix;
+    DirectX::XMFLOAT4X4 ModelMatrix;
+    DirectX::XMFLOAT4X4 ViewMatrix;
+};
+
+struct Vertex
+{
+    float Position[3];
+    float Colour[3];
+};
 
 class MainWindow
 {
@@ -25,18 +41,32 @@ public:
     static LRESULT CALLBACK WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
+    // Main Setup Steps
     void SetupDevice();
     void SetupWindow();
-    void SetupRendering();
+    void SetupSwapChain();
+    void SetupMeshPipeline();
 
+    void MeshConstantBuffer();
+    void MeshVertexBuffer();
+    void MeshIndexBuffer();
+    
     // Main render loop.
     void UpdateRender();
     void Render();
 
     // Setup Helpers
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC CreatePipelineDesc();
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateMeshPipelineDesc();
     void SetupRootSignature();
 
+    
+    
+    // Tri Data...
+    uint32_t TriIndexBufferData[3] = {0, 1, 2};
+    Vertex VertexBufferData[3] = {{{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+                                  {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+                                  {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+    
     // Render State
     bool bDXReady = false;
 
@@ -56,7 +86,7 @@ private:
     ComPtr<ID3DBlob> VS;
     ComPtr<ID3DBlob> PS;
     
-    // Buffers
+    // Frame Buffers
     ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
     UINT RtvHeapOffsetSize = 0;
     UINT FrameBufferCount = 2; // Currently only two buffers
@@ -67,6 +97,12 @@ private:
     ComPtr<ID3D12Fence> Fence;
     UINT64 FenceValue;
     HANDLE FenceEvent;
+
+    // Mesh Buffers
+    CB_WVP WVP; // World View Projection buffer.
+    D3D12_INDEX_BUFFER_VIEW IndexBufferView;
+    D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
+    ID3D12DescriptorHeap* ConstantBufferHeap;
     
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;

@@ -1,5 +1,12 @@
 #pragma once
 
+cbuffer CB_WVP : register(b0)
+{
+    row_major float4x4 ProjectionMatrix : packoffset(c0);
+    row_major float4x4 ModelMatrix : packoffset(c4);
+    row_major float4x4 ViewMatrix : packoffset(c8);
+};
+
 struct VS_INPUT
 {
     float3 Position : POSITION;
