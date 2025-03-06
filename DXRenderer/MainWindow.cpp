@@ -49,10 +49,6 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
 LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    PAINTSTRUCT ps;
-    HDC hdc;
-    TCHAR greeting[] = _T("Hello, DXRenderer!");
-    
     switch (message)
     {
     case WM_CLOSE:
@@ -65,20 +61,6 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
         
     case WM_PAINT:
         G_MainWindow->Render();
-
-        /*
-        hdc = BeginPaint(hWnd, &ps);
-
-        // Here your application is laid out.
-        // For this introduction, we just print out "Hello, Windows desktop!"
-        // in the top left corner.
-        TextOut(hdc,
-           5, 5,
-           greeting, static_cast<int>(_tcslen(greeting)));
-        // End application-specific layout section.
-
-        EndPaint(hWnd, &ps);
-        */
         break;
 
     default:
@@ -150,7 +132,8 @@ void MainWindow::SetupDevice()
         PostQuitMessage(1);
         return;
     }
-    
+
+    // Setup the events.
     HR = Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
     if (FAILED(HR))
     {
@@ -158,16 +141,8 @@ void MainWindow::SetupDevice()
         PostQuitMessage(1);
         return;
     }
-    //
-    // D3D12_RESOURCE_BARRIER Barrier{};
-    // Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    // Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    // Barrier.Transition.pResource = BackBuffer.Get(); // Probably need to flip here.
-    // Barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    // Barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-    // Barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    //
-    // CmdList->ResourceBarrier(1, &Barrier);
+    FenceEvent = CreateEvent(nullptr, false, false, nullptr);
+    
 }
 
 void MainWindow::SetupWindow()
@@ -211,11 +186,11 @@ void MainWindow::SetupWindow()
         szTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        Width, Height,
-        NULL,
-        NULL,
+        static_cast<int>(Width), static_cast<int>(Height),
+        nullptr,
+        nullptr,
         hInstance,
-       NULL
+       nullptr
     );
     if (!hWnd)
     {
@@ -265,6 +240,7 @@ void MainWindow::SetupRendering()
         return;
     }
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
     
     SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -392,9 +368,19 @@ void MainWindow::Render()
     if (FAILED(HR))
     {
         assert(false && "Failed to present swap chain!");
-        //printf("Failed to present!\n");
+        //printf("Swap chain failed to present!\n");
     }
+    
+    // Not the best practice, however works for this example...
+    const UINT64 CurrentFenceValue = FenceValue;
+    CmdQueue->Signal(Fence.Get(), CurrentFenceValue);
+    FenceValue++;
 
+    if (Fence->GetCompletedValue() < CurrentFenceValue)
+    {
+        Fence->SetEventOnCompletion(CurrentFenceValue, FenceEvent);
+        WaitForSingleObject(FenceEvent, INFINITE);
+    }
 
     // Update index.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
@@ -426,6 +412,7 @@ int MainWindow::Run()
         else
         {
             // Update renderer.
+            // Currently done in the Paint message.
 
             // Render
             //Render();

@@ -44,10 +44,10 @@ private:
     ComPtr<IDXGISwapChain4> SwapChain;
     ComPtr<ID3D12PipelineState> PipelineState;
     D3D12_VIEWPORT Viewport;
-    
+
+    // Shaders and object resources.
     ComPtr<ID3DBlob> VS;
     ComPtr<ID3DBlob> PS;
-    
     
     // Buffers
     ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
@@ -59,9 +59,8 @@ private:
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;
     UINT64 FenceValue;
-    // FenceEnvent;
-
-
+    HANDLE FenceEvent;
+    
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
