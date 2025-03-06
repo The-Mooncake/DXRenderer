@@ -25,13 +25,19 @@ public:
     static LRESULT CALLBACK WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
-
     void SetupDevice();
     void SetupWindow();
     void SetupRendering();
 
+    // Main render loop.
+    void UpdateRender();
     void Render();
-    
+
+    // Setup Helpers
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC CreatePipelineDesc();
+    void SetupRootSignature();
+
+    // Render State
     bool bDXReady = false;
 
     // DX resources.
@@ -42,6 +48,7 @@ private:
     ComPtr<ID3D12CommandAllocator> CmdAllocator;
     ComPtr<ID3D12GraphicsCommandList> CmdList;
     ComPtr<IDXGISwapChain4> SwapChain;
+    ComPtr<ID3D12RootSignature> RootSig;
     ComPtr<ID3D12PipelineState> PipelineState;
     D3D12_VIEWPORT Viewport;
 

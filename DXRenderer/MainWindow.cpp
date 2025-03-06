@@ -147,11 +147,11 @@ void MainWindow::SetupDevice()
 
 void MainWindow::SetupWindow()
 {
-    TCHAR szWindowClass[] = _T("DXRenderer");
-    TCHAR szTitle[] = _T("Win D3D Renderer - Mooncake");
+    const TCHAR szWindowClass[] = _T("DXRenderer");
+    const TCHAR szTitle[] = _T("Win D3D Renderer - Mooncake");
 
-    UINT Width = 600;
-    UINT Height = 400;
+    const UINT Width = 600;
+    const UINT Height = 400;
     
     // Window Info
     WNDCLASSEX wcex;
@@ -213,6 +213,90 @@ void MainWindow::SetupWindow()
     Viewport.MaxDepth = 100.0f;
 }
 
+D3D12_GRAPHICS_PIPELINE_STATE_DESC MainWindow::CreatePipelineDesc()
+{
+    D3D12_INPUT_ELEMENT_DESC InElementDesc[] =  // Define the vertex input layout.
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    
+    D3D12_RASTERIZER_DESC Raster_Desc{};
+    Raster_Desc.FillMode = D3D12_FILL_MODE_SOLID;
+    Raster_Desc.CullMode = D3D12_CULL_MODE_NONE;
+    Raster_Desc.FrontCounterClockwise = false;
+    Raster_Desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+    Raster_Desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+    Raster_Desc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    Raster_Desc.DepthClipEnable = true;
+    Raster_Desc.MultisampleEnable = false;
+    Raster_Desc.AntialiasedLineEnable = false;
+    Raster_Desc.ForcedSampleCount = 0;
+    Raster_Desc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    
+    D3D12_BLEND_DESC Blend_Desc{};
+    Blend_Desc.AlphaToCoverageEnable = false;
+    Blend_Desc.IndependentBlendEnable = false;
+    
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = {};
+    PipeStateDesc.InputLayout = { InElementDesc, _countof(InElementDesc) }; // Array of shader intrinsics
+    PipeStateDesc.pRootSignature = RootSig.Get();
+    PipeStateDesc.VS = {reinterpret_cast<UINT8*>(VS->GetBufferPointer()), VS->GetBufferSize()};
+    PipeStateDesc.PS = {reinterpret_cast<UINT8*>(PS->GetBufferPointer()), PS->GetBufferSize()};
+    PipeStateDesc.RasterizerState = Raster_Desc;
+    PipeStateDesc.BlendState = Blend_Desc;
+    PipeStateDesc.DepthStencilState.DepthEnable = FALSE;
+    PipeStateDesc.DepthStencilState.StencilEnable = FALSE;
+    PipeStateDesc.SampleMask = UINT_MAX;
+    PipeStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    PipeStateDesc.NumRenderTargets = FrameBufferCount;
+    PipeStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // Probably should iterate through.
+    PipeStateDesc.SampleDesc.Count = 1;
+
+    return PipeStateDesc;
+}
+
+
+void MainWindow::SetupRootSignature()
+{
+    D3D12_DESCRIPTOR_RANGE1 RtvDescRanges[1];
+    RtvDescRanges[0].NumDescriptors = 1;
+    RtvDescRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+    RtvDescRanges[0].BaseShaderRegister = 0;
+    RtvDescRanges[0].RegisterSpace = 0;
+    RtvDescRanges[0].OffsetInDescriptorsFromTableStart = 0;
+    RtvDescRanges[0].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
+    D3D12_ROOT_PARAMETER1 RootParam[1] = {};
+    RootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    RootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    RootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+    RootParam[0].DescriptorTable.pDescriptorRanges = RtvDescRanges;
+
+
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
+    RootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    RootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    RootSignatureDesc.Desc_1_1.NumParameters = 1;
+    RootSignatureDesc.Desc_1_1.pParameters = RootParam; 
+    RootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
+    RootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
+    
+    ID3DBlob* ErrorBlob = nullptr;
+    ID3DBlob* SigBlob = nullptr;
+    D3D12SerializeVersionedRootSignature(&RootSignatureDesc, &SigBlob, &ErrorBlob);
+    HRESULT HR = Device->CreateRootSignature(0, SigBlob->GetBufferPointer(), SigBlob->GetBufferSize(), IID_PPV_ARGS(&RootSig));
+    if (FAILED(HR))
+    {
+        printf("Failed to create root signature.\n");
+        PostQuitMessage(1);
+        ErrorBlob->Release();
+        return;
+    }
+    RootSig->SetName(L"Main Render Sig");
+    SigBlob->Release();
+}
+
 void MainWindow::SetupRendering()
 {
     HRESULT HR;
@@ -228,8 +312,7 @@ void MainWindow::SetupRendering()
     desc.SampleDesc.Count = 1;      //multisampling setting
     desc.SampleDesc.Quality = 0;    //vendor-specific flag
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-    //desc.Flags = DXGI_PRESENT_RESTART;
-    
+
     // Might need to use CreateSwapChainForCoreWindow || CreateSwapchainForComposition...
     ComPtr<IDXGISwapChain1> BaseSwapChain;
     HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &BaseSwapChain);
@@ -245,11 +328,11 @@ void MainWindow::SetupRendering()
     SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // RTV Heaps
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.NumDescriptors = FrameBufferCount;
-    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    HR = Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&FrameBufferHeap));
+    D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
+    RtvHeapDesc.NumDescriptors = FrameBufferCount;
+    RtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    RtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    HR = Device->CreateDescriptorHeap(&RtvHeapDesc, IID_PPV_ARGS(&FrameBufferHeap));
     if (FAILED(HR))
     {
         printf("Failed to create rtv heap.\n");
@@ -260,32 +343,32 @@ void MainWindow::SetupRendering()
     RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     
     // Create Buffer Resources.
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-    rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
+    RtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
     // Swap chain rtv setup.
     FrameBuffers.resize(FrameBufferCount);
-    for (int Idx = 0; Idx < FrameBufferCount; Idx++)
+    for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
     {
         ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
         SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
-        Device->CreateRenderTargetView(Buffer.Get(), &rtvDesc, BufferHandle);
+        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle);
 
         // Offset Buffer Handle
         BufferHandle.ptr += RtvHeapOffsetSize;
     }
     
     // Load and Compile shaders...
-    UINT compileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
-    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &VS, nullptr);
+    UINT CompileFlags = 0; // Can use D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
+    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", CompileFlags, 0, &VS, nullptr);
     if (FAILED(HR))
     {
         printf("Failed to compile vertex shaders.\n");
         PostQuitMessage(1);
         return;
     }
-    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &PS, nullptr);
+    HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", CompileFlags, 0, &PS, nullptr);
     if (FAILED(HR))
     {
         printf("Failed to compile pixel shaders.\n");
@@ -293,48 +376,26 @@ void MainWindow::SetupRendering()
         return;
     }
     
-    // Define the vertex input layout.
-    D3D12_INPUT_ELEMENT_DESC InElementDesc[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
-    
     // Root Signature
-    // ComPtr<ID3D12RootSignature> RootSig;
-    // HR = Device->CreateRootSignature(0, 0, 0, IID_PPV_ARGS(&RootSig));
-    // if (FAILED(HR))
-    // {
-    //     printf("Failed to create root signature.\n");
-    //     PostQuitMessage(1);
-    //     return;
-    // }
+    SetupRootSignature();
     
     // Create Pipeline State
-    // Not quite needed yet, will be when we render meshes.
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = CreatePipelineDesc();
+    HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
+    if (FAILED(HR))
+    {
+        printf("Failed to create graphics pipeline.\n");
+        PostQuitMessage(1);
+        return;
+    }
     
-    // D3D12_RASTERIZER_DESC Raster_Desc{};
-    // D3D12_BLEND_DESC Blend_Desc{};
-    // D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    // psoDesc.InputLayout = { InElementDesc, _countof(InElementDesc) }; // Array of shader intrinsics
-    // psoDesc.pRootSignature = m_rootSignature.Get();
-    // psoDesc.VS = {reinterpret_cast<UINT8*>(VS->GetBufferPointer()), VS->GetBufferSize()};
-    // psoDesc.PS = {reinterpret_cast<UINT8*>(PS->GetBufferPointer()), PS->GetBufferSize()};
-    // psoDesc.RasterizerState = Raster_Desc;
-    // psoDesc.BlendState = Blend_Desc;
-    // psoDesc.DepthStencilState.DepthEnable = FALSE;
-    // psoDesc.DepthStencilState.StencilEnable = FALSE;
-    // psoDesc.SampleMask = UINT_MAX;
-    // psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    // psoDesc.NumRenderTargets = 1;
-    // psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    // psoDesc.SampleDesc.Count = 1;
-    // Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&PipelineState));
-
-    
-
     // DX Setup correctly.
     bDXReady = true;
+}
+
+void MainWindow::UpdateRender()
+{
+    
 }
 
 void MainWindow::Render()
@@ -346,17 +407,15 @@ void MainWindow::Render()
     CmdList->Reset(CmdAllocator.Get(), nullptr);
 
     // Clear RTs
-    FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f };
-    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHandle.ptr = RtvHandle.ptr + (CurrentBackBuffer * RtvHeapOffsetSize); 
-    CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
-
+    FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     
-    //CmdList->RSSetViewports(1, &Viewport);
+    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
+    CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
 
     // Finalise command list and queues.
     CmdList->Close();
-    
+
     ID3D12CommandList* const CmdLists[] = {
         CmdList.Get()
     };
