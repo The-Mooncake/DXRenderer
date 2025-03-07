@@ -109,14 +109,14 @@
   <ItemGroup>
     <ClCompile Include="DXRenderer.cpp" />
     <ClCompile Include="MainWindow.cpp" />
-    <Text Include="Shaders.hlsl">
+    <CopyFileToFolders Include="Shaders.hlsl">
       <FileType>Document</FileType>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </Text>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />

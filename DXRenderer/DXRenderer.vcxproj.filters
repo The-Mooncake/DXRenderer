@@ -31,6 +31,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Shaders.hlsl" />
+    <CopyFileToFolders Include="Shaders.hlsl" />
   </ItemGroup>
 </Project>
