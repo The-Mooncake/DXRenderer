@@ -339,7 +339,7 @@ void MainWindow::SetupSwapChain()
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
     
-    SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET); // Com_error at memory location.
 
     // RTV Heaps
     D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
@@ -367,7 +367,7 @@ void MainWindow::SetupSwapChain()
     {
         ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
         SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
-        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle);
+        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
 
         // Offset Buffer Handle
         BufferHandle.ptr += RtvHeapOffsetSize;
