@@ -260,7 +260,7 @@ void MainWindow::CreateMeshPipeline()
     PipeStateDesc.SampleMask = UINT_MAX;
     PipeStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     PipeStateDesc.NumRenderTargets = 1;
-    PipeStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // Probably should iterate through.
+    PipeStateDesc.RTVFormats[0] = FrameBufferFormat; // Probably should iterate through.
     PipeStateDesc.SampleDesc.Count = 1;
 
     HRESULT HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
@@ -304,7 +304,7 @@ void MainWindow::SetupRootSignature()
     {
         printf("Failed to create root signature.\n");
         PostQuitMessage(1);
-        ErrorBlob->Release();
+        if (ErrorBlob) { ErrorBlob->Release(); }
         return;
     }
     RootSig->SetName(L"Main Render Sig");
@@ -321,7 +321,7 @@ void MainWindow::SetupSwapChain()
     desc.Width = 600;
     desc.Height = 400;
     desc.BufferCount = 2;
-    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.Format = FrameBufferFormat;
     desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     desc.SampleDesc.Count = 1;      //multisampling setting
     desc.SampleDesc.Quality = 0;    //vendor-specific flag
@@ -338,8 +338,8 @@ void MainWindow::SetupSwapChain()
     }
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
-    
-    SwapChain->ResizeBuffers(2, 600, 400, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_STATE_RENDER_TARGET); // Com_error at memory location.
+
+    SwapChain->ResizeBuffers(2, 600, 400, FrameBufferFormat, D3D12_RESOURCE_STATE_RENDER_TARGET); 
 
     // RTV Heaps
     D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
@@ -358,7 +358,7 @@ void MainWindow::SetupSwapChain()
     
     // Create Buffer Resources.
     D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
-    RtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    RtvDesc.Format = FrameBufferFormat;
     RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
     // Swap chain rtv setup.
@@ -366,7 +366,11 @@ void MainWindow::SetupSwapChain()
     for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
     {
         ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
-        SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
+        HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
+        if (FAILED(HR))
+        {
+            printf("Failed to get buffer at idx: %d", Idx);
+        }
         Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
 
         // Offset Buffer Handle
@@ -629,7 +633,7 @@ void MainWindow::Render()
 
     CmdList->SetGraphicsRootSignature(RootSig.Get());
     CmdList->SetPipelineState(PipelineState.Get());
-    
+
     CmdList->RSSetViewports(1, &Viewport);
     D3D12_RECT ScissorRect{};
     ScissorRect.bottom = 400;
@@ -712,6 +716,7 @@ void MainWindow::Render()
 
     // Update index.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
+
 }
 
 

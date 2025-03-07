@@ -94,6 +94,7 @@ private:
     UINT FrameBufferCount = 2; // Currently only two buffers
     std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
     UINT CurrentBackBuffer = 0;
+    DXGI_FORMAT FrameBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;
