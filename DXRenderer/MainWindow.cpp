@@ -89,7 +89,7 @@ void MainWindow::SetupDevice()
     HR = CreateDXGIFactory1(IID_PPV_ARGS(&Factory));
     if (FAILED(HR))
     {
-        printf("Failed to create D3D12 Factory\n");
+        MessageBoxW(nullptr, L"Failed to create D3D12 Factory!.", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -103,7 +103,7 @@ void MainWindow::SetupDevice()
     }
     if (FAILED(HR))
     {
-        printf("Failed to create D3D12 Factory\n");
+        MessageBoxW(nullptr, L"Failed to create D3D12 Factory!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -112,7 +112,7 @@ void MainWindow::SetupDevice()
     HR = D3D12CreateDevice(Adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&Device));
     if (FAILED(HR))
     {
-        printf("Failed to create D3D12 device\n");
+        MessageBoxW(nullptr, L"Failed to create D3D12 device!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -121,7 +121,7 @@ void MainWindow::SetupDevice()
     HR = Device->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(&CmdQueue));
     if (FAILED(HR))
     {
-        printf("Failed to create command queue\n");
+        MessageBoxW(nullptr, L"Failed to create command queue!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -129,7 +129,7 @@ void MainWindow::SetupDevice()
     HR = Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&CmdAllocator));
     if (FAILED(HR))
     {
-        printf("Failed to create command allocator\n");
+        MessageBoxW(nullptr, L"Failed to create command allocator!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -137,7 +137,7 @@ void MainWindow::SetupDevice()
     HR = Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CmdAllocator.Get(), 0, IID_PPV_ARGS(&CmdList));
     if (FAILED(HR))
     {
-        printf("Failed to create command list.\n");
+        MessageBoxW(nullptr, L"Failed to create command list!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -147,7 +147,7 @@ void MainWindow::SetupDevice()
     HR = Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
     if (FAILED(HR))
     {
-        printf("Failed to create DX Fence\n");
+        MessageBoxW(nullptr, L"Failed to create DX Fence!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -266,7 +266,7 @@ void MainWindow::CreateMeshPipeline()
     HRESULT HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
     if (FAILED(HR))
     {
-        printf("Failed to create graphics pipeline.\n");
+        MessageBoxW(nullptr, L"Failed to create graphics pipeline!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
 }
@@ -302,7 +302,7 @@ void MainWindow::SetupRootSignature()
     HRESULT HR = Device->CreateRootSignature(0, SigBlob->GetBufferPointer(), SigBlob->GetBufferSize(), IID_PPV_ARGS(&RootSig));
     if (FAILED(HR))
     {
-        printf("Failed to create root signature.\n");
+        MessageBoxW(nullptr, L"Failed to create root signature!", L"Error", MB_OK);
         PostQuitMessage(1);
         if (ErrorBlob) { ErrorBlob->Release(); }
         return;
@@ -332,7 +332,7 @@ void MainWindow::SetupSwapChain()
     HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &BaseSwapChain);
     if (FAILED(HR))
     {
-        printf("Failed to create swap chain.\n");
+        MessageBoxW(nullptr, L"Failed to create swap chain!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -349,7 +349,7 @@ void MainWindow::SetupSwapChain()
     HR = Device->CreateDescriptorHeap(&RtvHeapDesc, IID_PPV_ARGS(&FrameBufferHeap));
     if (FAILED(HR))
     {
-        printf("Failed to create rtv heap.\n");
+        MessageBoxW(nullptr, L"Failed to create rtv heap!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -369,7 +369,9 @@ void MainWindow::SetupSwapChain()
         HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
         if (FAILED(HR))
         {
+            MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
             printf("Failed to get buffer at idx: %d", Idx);
+            PostQuitMessage(1);
         }
         Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
 
@@ -391,14 +393,14 @@ void MainWindow::SetupMeshPipeline()
     HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", CompileFlags, 0, &VS, nullptr);
     if (FAILED(HR))
     {
-        printf("Failed to compile vertex shaders.\n");
+        MessageBoxW(nullptr, L"Failed to compile vertex shaders!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
     HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", CompileFlags, 0, &PS, nullptr);
     if (FAILED(HR))
     {
-        printf("Failed to compile pixel shaders.\n");
+        MessageBoxW(nullptr, L"Failed to compile pixel shaders!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -439,7 +441,7 @@ void MainWindow::MeshConstantBuffer()
     HR = Device->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&ConstantBufferHeap));
     if (FAILED(HR))
     {
-        printf("Failed to create constant buffer descriptor heap.\n");
+        MessageBoxW(nullptr, L"Failed to create constant buffer descriptor heap!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -461,7 +463,7 @@ void MainWindow::MeshConstantBuffer()
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ConstantBuffer));
     if (FAILED(HR))
     {
-        printf("Failed to create constant buffer.\n");
+        MessageBoxW(nullptr, L"Failed to create constant buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -484,7 +486,7 @@ void MainWindow::MeshConstantBuffer()
     HR = ConstantBuffer->Map(0, &ReadRange, reinterpret_cast<void**>(&MappedConstantBuffer));
     if (FAILED(HR))
     {
-        printf("Failed to map constant buffer.\n");
+        MessageBoxW(nullptr, L"Failed to map constant buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -523,7 +525,7 @@ void MainWindow::MeshVertexBuffer()
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&VertexBuffer));
     if (FAILED(HR))
     {
-        printf("Failed to create vertex buffer.\n");
+        MessageBoxW(nullptr, L"Failed to create vertex buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -539,7 +541,7 @@ void MainWindow::MeshVertexBuffer()
     HR = VertexBuffer->Map(0, &ReadRange, reinterpret_cast<void**>(&VertexDataBegin));
     if (FAILED(HR))
     {
-        printf("Failed to map vertex buffer.\n");
+        MessageBoxW(nullptr, L"Failed to map vertex buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
     memcpy(VertexDataBegin, VertexBufferData, sizeof(VertexBufferData));
@@ -589,7 +591,7 @@ void MainWindow::MeshIndexBuffer()
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&IndexBuffer));
     if (FAILED(HR))
     {
-        printf("Failed to create index buffer\n");
+        MessageBoxW(nullptr, L"Failed to create index buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -605,7 +607,7 @@ void MainWindow::MeshIndexBuffer()
     HR = IndexBuffer->Map(0, &IdxReadRange, reinterpret_cast<void**>(&pVertexDataBegin));
     if (FAILED(HR))
     {
-        printf("Failed to Map index buffer\n");
+        MessageBoxW(nullptr, L"Failed to Map index buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
@@ -629,7 +631,13 @@ void MainWindow::Render()
     
     // Reset render queue.
     CmdAllocator->Reset();
-    CmdList->Reset(CmdAllocator.Get(), nullptr);
+    HR = CmdList->Reset(CmdAllocator.Get(), nullptr);
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to reset the command list!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return;
+    }
 
     CmdList->SetGraphicsRootSignature(RootSig.Get());
     CmdList->SetPipelineState(PipelineState.Get());
@@ -698,8 +706,8 @@ void MainWindow::Render()
     HR = SwapChain->Present(1, 0); //, &dxgiParams);
     if (FAILED(HR))
     {
-        assert(false && "Failed to present swap chain!");
-        //printf("Swap chain failed to present!\n");
+        MessageBoxW(nullptr, L"Failed to present swap chain!", L"Error", MB_OK);
+        PostQuitMessage(1);
     }
     
     // Not the best practice, however works for this example...

@@ -98,7 +98,7 @@ private:
 
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;
-    UINT64 FenceValue;
+    UINT64 FenceValue = 0;
     HANDLE FenceEvent;
 
     // Mesh Buffers
