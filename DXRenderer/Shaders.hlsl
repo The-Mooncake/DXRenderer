@@ -22,8 +22,9 @@ struct VS_OUTPUT
 VS_OUTPUT VSMain(VS_INPUT In)
 {
     VS_OUTPUT Out;
-    Out.Position = float4(In.Position, 0.0f);
+    Out.Position = float4(In.Position, 1.0f) ;
     Out.Colour = In.Colour;
+    
     return Out;
 }
 

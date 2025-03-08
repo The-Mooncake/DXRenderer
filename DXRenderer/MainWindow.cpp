@@ -160,8 +160,6 @@ void MainWindow::SetupWindow()
     const TCHAR szWindowClass[] = _T("DXRenderer");
     const TCHAR szTitle[] = _T("Win D3D Renderer - Mooncake");
 
-    const UINT Width = 600;
-    const UINT Height = 400;
     
     // Window Info
     WNDCLASSEX wcex;
@@ -220,7 +218,7 @@ void MainWindow::SetupWindow()
     Viewport.Width = static_cast<float>(Width);
     Viewport.Height = static_cast<float>(Height);
     Viewport.MinDepth = 0.0f;
-    Viewport.MaxDepth = 100.0f;
+    Viewport.MaxDepth = 1.0f;
 }
 
 void MainWindow::CreateMeshPipeline()
@@ -238,7 +236,7 @@ void MainWindow::CreateMeshPipeline()
     Raster_Desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     Raster_Desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
     Raster_Desc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-    Raster_Desc.DepthClipEnable = true;
+    Raster_Desc.DepthClipEnable = false;
     Raster_Desc.MultisampleEnable = false;
     Raster_Desc.AntialiasedLineEnable = false;
     Raster_Desc.ForcedSampleCount = 0;
@@ -247,6 +245,15 @@ void MainWindow::CreateMeshPipeline()
     D3D12_BLEND_DESC Blend_Desc{};
     Blend_Desc.AlphaToCoverageEnable = false;
     Blend_Desc.IndependentBlendEnable = false;
+    const D3D12_RENDER_TARGET_BLEND_DESC DefaultRenderTargetBlendDesc =
+    {
+        false, false,
+        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_LOGIC_OP_NOOP,
+        D3D12_COLOR_WRITE_ENABLE_ALL,
+    };
+    Blend_Desc.RenderTarget[0] = DefaultRenderTargetBlendDesc;
     
     D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = {};
     PipeStateDesc.InputLayout = { InElementDesc, _countof(InElementDesc) }; // Array of shader intrinsics
@@ -284,31 +291,39 @@ void MainWindow::SetupRootSignature()
     D3D12_ROOT_PARAMETER1 RootParam[1] = {};
     RootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     RootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    RootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+    RootParam[0].DescriptorTable.NumDescriptorRanges = _countof(RtvDescRanges);
     RootParam[0].DescriptorTable.pDescriptorRanges = RtvDescRanges;
 
 
     D3D12_VERSIONED_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
     RootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
     RootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    RootSignatureDesc.Desc_1_1.NumParameters = 1;
+    RootSignatureDesc.Desc_1_1.NumParameters = _countof(RootParam);
     RootSignatureDesc.Desc_1_1.pParameters = RootParam; 
     RootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
     RootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
     
     ID3DBlob* ErrorBlob = nullptr;
     ID3DBlob* SigBlob = nullptr;
-    D3D12SerializeVersionedRootSignature(&RootSignatureDesc, &SigBlob, &ErrorBlob);
-    HRESULT HR = Device->CreateRootSignature(0, SigBlob->GetBufferPointer(), SigBlob->GetBufferSize(), IID_PPV_ARGS(&RootSig));
+    HRESULT HR = D3D12SerializeVersionedRootSignature(&RootSignatureDesc, &SigBlob, &ErrorBlob);
+    if FAILED(HR) 
+    {
+        MessageBoxW(nullptr, L"Failed to serialize root signature!", L"Error", MB_OK);
+        if (ErrorBlob) { ErrorBlob->Release(); }
+        PostQuitMessage(1);
+        return;
+    }
+    
+    HR = Device->CreateRootSignature(0, SigBlob->GetBufferPointer(), SigBlob->GetBufferSize(), IID_PPV_ARGS(&RootSig));
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create root signature!", L"Error", MB_OK);
         PostQuitMessage(1);
-        if (ErrorBlob) { ErrorBlob->Release(); }
         return;
     }
     RootSig->SetName(L"Main Render Sig");
     SigBlob->Release();
+    if (ErrorBlob) { ErrorBlob->Release(); }
 }
 
 void MainWindow::SetupSwapChain()
@@ -318,14 +333,13 @@ void MainWindow::SetupSwapChain()
     // SwapChain
     DXGI_SWAP_CHAIN_DESC1 desc;
     ZeroMemory(&desc, sizeof(DXGI_SWAP_CHAIN_DESC1));
-    desc.Width = 600;
-    desc.Height = 400;
-    desc.BufferCount = 2;
+    desc.Width = Width;
+    desc.Height = Height;
+    desc.BufferCount = FrameBufferCount;
     desc.Format = FrameBufferFormat;
     desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     desc.SampleDesc.Count = 1;      //multisampling setting
-    desc.SampleDesc.Quality = 0;    //vendor-specific flag
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
     // Might need to use CreateSwapChainForCoreWindow || CreateSwapchainForComposition...
     ComPtr<IDXGISwapChain1> BaseSwapChain;
@@ -339,7 +353,8 @@ void MainWindow::SetupSwapChain()
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 
-    SwapChain->ResizeBuffers(2, 600, 400, FrameBufferFormat, D3D12_RESOURCE_STATE_RENDER_TARGET); 
+    Factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER);
+    SwapChain->ResizeBuffers(2, Width, Height, FrameBufferFormat, 0);
 
     // RTV Heaps
     D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
@@ -413,7 +428,7 @@ void MainWindow::SetupMeshPipeline()
 
     // Setup buffers.
     //MeshConstantBuffer();
-    //MeshIndexBuffer();
+    MeshIndexBuffer();
     MeshVertexBuffer();
 }
 
@@ -520,7 +535,7 @@ void MainWindow::MeshVertexBuffer()
     VertexBufferResourceDesc.SampleDesc.Quality = 0;
     VertexBufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     VertexBufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
+     
     HR = Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &VertexBufferResourceDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&VertexBuffer));
     if (FAILED(HR))
@@ -631,7 +646,7 @@ void MainWindow::Render()
     
     // Reset render queue.
     CmdAllocator->Reset();
-    HR = CmdList->Reset(CmdAllocator.Get(), nullptr);
+    HR = CmdList->Reset(CmdAllocator.Get(), PipelineState.Get());
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to reset the command list!", L"Error", MB_OK);
@@ -640,14 +655,14 @@ void MainWindow::Render()
     }
 
     CmdList->SetGraphicsRootSignature(RootSig.Get());
-    CmdList->SetPipelineState(PipelineState.Get());
-
     CmdList->RSSetViewports(1, &Viewport);
     D3D12_RECT ScissorRect{};
-    ScissorRect.bottom = 400;
-    ScissorRect.right = 600;
+    ScissorRect.right = Width;
+    ScissorRect.bottom = Height;
+    ScissorRect.left = 0;
+    ScissorRect.top = 0;
     CmdList->RSSetScissorRects(1, &ScissorRect);
-    
+    CmdList->SetPipelineState(PipelineState.Get());
 
     //ID3D12DescriptorHeap* DescriptorHeaps[] = {ConstantBufferHeap};
     //CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps);
@@ -668,8 +683,7 @@ void MainWindow::Render()
 
     D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
-    CmdList->OMSetRenderTargets(1, &RtvHandle, TRUE, nullptr);
-    
+    CmdList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
 
     // Clear Backbuffer
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
@@ -678,7 +692,7 @@ void MainWindow::Render()
     // Mesh rendering
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     CmdList->IASetVertexBuffers(0, 1, &VertexBufferView);
-    //CmdList->IASetIndexBuffer(&IndexBufferView);
+    CmdList->IASetIndexBuffer(&IndexBufferView);
 
     CmdList->DrawIndexedInstanced(3, 1, 0 ,0, 0);
     
@@ -711,9 +725,9 @@ void MainWindow::Render()
     }
     
     // Not the best practice, however works for this example...
-    const UINT64 CurrentFenceValue = FenceValue;
-    CmdQueue->Signal(Fence.Get(), CurrentFenceValue);
-    FenceValue++;
+    //const UINT64 CurrentFenceValue = FenceValue;
+    //CmdQueue->Signal(Fence.Get(), CurrentFenceValue);
+    //FenceValue++;
 
     //if (Fence->GetCompletedValue() < CurrentFenceValue)
     //{

@@ -27,8 +27,8 @@ struct CB_WVP
 
 struct Vertex
 {
-    float Position[3];
-    float Colour[3];
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT4 Colour;
 };
 
 class MainWindow
@@ -60,13 +60,16 @@ private:
     void SetupRootSignature();
     void WaitForPreviousFrame();
     
+    // Window Size
+    UINT Width = 800;
+    UINT Height = 600;
     
     // Tri Data...
-    float AspectRatio = 600.0 / 400.0;
+    float AspectRatio = Width / Height;
     uint32_t TriIndexBufferData[3] = {0, 1, 2};
-    Vertex VertexBufferData[3] = {{{0.0f, 0.25f * AspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                                  {{0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                                  {{-0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+    Vertex VertexBufferData[3] = {{{0.0f, 0.25f * AspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+                                  {{0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+                                  {{-0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}};
     
     // Render State
     bool bDXReady = false;
@@ -110,4 +113,5 @@ private:
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
+
 };
