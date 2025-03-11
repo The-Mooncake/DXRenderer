@@ -11,10 +11,10 @@
 #include <dxgi1_6.h>
 #include <DirectXMath.h>
 
+using Microsoft::WRL::ComPtr; // Import only the ComPtr
+
 // Global ptr to the main window instance.
 static class MainWindow* G_MainWindow = nullptr;
-
-using Microsoft::WRL::ComPtr; // Import only the ComPtr
 
 
 // ConstBuffer
@@ -36,6 +36,7 @@ class MainWindow
 public:
 
     MainWindow(HINSTANCE InHInstance);
+    ~MainWindow();
 
     int Run();
     static LRESULT CALLBACK WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -46,18 +47,19 @@ private:
     void SetupWindow();
     void SetupSwapChain();
     void SetupMeshPipeline();
-
-    void MeshConstantBuffer();
-    void MeshVertexBuffer();
-    void MeshIndexBuffer();
     
     // Main render loop.
     void UpdateRender();
     void Render();
 
     // Setup Helpers
-    void CreateMeshPipeline();
     void SetupRootSignature();
+    void CreateMeshPipeline();
+    void MeshConstantBuffer();
+    void MeshVertexBuffer();
+    void MeshIndexBuffer();
+
+    // Timing
     void WaitForPreviousFrame();
     
     // Window Size
@@ -65,7 +67,7 @@ private:
     UINT Height = 600;
     
     // Tri Data...
-    float AspectRatio = Width / Height;
+    float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
     uint32_t TriIndexBufferData[3] = {0, 1, 2};
     Vertex VertexBufferData[3] = {{{0.0f, 0.25f * AspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
                                   {{0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
@@ -76,9 +78,10 @@ private:
 
     // DX resources.
     ComPtr<ID3D12Debug> DebugController;
+    ComPtr<IDXGIDebug1> DebugDXGI;
+    ComPtr<ID3D12Device7> Device;
     ComPtr<IDXGIFactory7> Factory;
     ComPtr<IDXGIAdapter1> Adapter;
-    ComPtr<ID3D12Device7> Device;
     ComPtr<ID3D12CommandQueue> CmdQueue;
     ComPtr<ID3D12CommandAllocator> CmdAllocator;
     ComPtr<ID3D12GraphicsCommandList> CmdList;
@@ -92,12 +95,12 @@ private:
     ComPtr<ID3DBlob> PS;
     
     // Frame Buffers
-    ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
-    UINT RtvHeapOffsetSize = 0;
-    UINT FrameBufferCount = 2; // Currently only two buffers
     std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
     UINT CurrentBackBuffer = 0;
     DXGI_FORMAT FrameBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+    ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
+    UINT RtvHeapOffsetSize = 0;
+    UINT FrameBufferCount = 2; // Currently only two buffers
 
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;
@@ -108,7 +111,10 @@ private:
     CB_WVP WVP; // World View Projection buffer.
     D3D12_INDEX_BUFFER_VIEW IndexBufferView;
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
-    ID3D12DescriptorHeap* ConstantBufferHeap;
+    ComPtr<ID3D12Resource> VertexBuffer;
+    ComPtr<ID3D12Resource> IndexBuffer;    
+    ComPtr<ID3D12Resource> ConstantBuffer;
+    ComPtr<ID3D12DescriptorHeap> ConstantBufferHeap;
     
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
