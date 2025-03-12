@@ -236,8 +236,8 @@ void MainWindow::SetupWindow()
     Viewport.TopLeftY = 0.0f;
     Viewport.Width = static_cast<float>(Width);
     Viewport.Height = static_cast<float>(Height);
-    Viewport.MinDepth = 0.0f;
-    Viewport.MaxDepth = 1.0f;
+    Viewport.MinDepth = NearPlane;
+    Viewport.MaxDepth = FarPlane;
 }
 
 void MainWindow::SetupSwapChain()
@@ -458,6 +458,8 @@ void MainWindow::MeshConstantBuffer()
 {
     HRESULT HR;
 
+    //UpdateRender();
+
     // Create the Constant Buffer
     D3D12_DESCRIPTOR_HEAP_DESC HeapDesc = {};
     HeapDesc.NodeMask = 0;
@@ -654,7 +656,7 @@ void MainWindow::MeshIndexBuffer()
 
     IndexBuffer->SetName(L"Mesh Index Buffer");
 
-    // 👀 Initialize the index buffer view.
+    // Initialize the index buffer view.
     IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
     IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
     IndexBufferView.SizeInBytes = IndexBufferSize;
@@ -662,12 +664,36 @@ void MainWindow::MeshIndexBuffer()
 
 void MainWindow::UpdateRender()
 {
-    // Update things like camera pos and view, etc...
-     
-    XMFLOAT4X4 Default = XMFLOAT4X4(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-    WVP.ProjectionMatrix = Default;
-    WVP.ModelMatrix = Default;
-    WVP.ProjectionMatrix= Default;
+    // Update things like camera pos, view, and time, etc...
+    Time += TimeStep;
+
+    // Using Left handed coordinate systems.
+    XMMATRIX Model = DirectX::XMMatrixIdentity();
+    XMMATRIX Rot = DirectX::XMMatrixRotationY(Time);
+    Model = DirectX::XMMatrixMultiply(Model, Rot);
+
+    XMMATRIX View = DirectX::XMMatrixLookAtLH({0, 0, -5}, {0, 0, 0}, {0, 1, 0}); // Y is up.
+
+    XMMATRIX Projection = DirectX::XMMatrixPerspectiveFovLH(50, AspectRatio, NearPlane, FarPlane);
+
+    WVP.ModelMatrix = Model;
+    WVP.ViewMatrix = View;
+    WVP.ProjectionMatrix = Projection;
+
+    // Update constant buffer.
+    D3D12_RANGE ReadRange;
+    ReadRange.Begin = 0;
+    ReadRange.End = 0;
+    UINT8* MappedConstantBuffer;
+    HRESULT HR = ConstantBuffer->Map(0, &ReadRange, reinterpret_cast<void**>(&MappedConstantBuffer));
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to map constant buffer!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return;
+    }
+    memcpy(MappedConstantBuffer, &WVP, sizeof(WVP));
+    ConstantBuffer->Unmap(0, &ReadRange);
 }
 
 void MainWindow::Render()

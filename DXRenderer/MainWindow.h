@@ -7,6 +7,7 @@
 
 // DX
 #include <d3dcommon.h>
+#include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <DirectXMath.h>
@@ -20,9 +21,9 @@ static class MainWindow* G_MainWindow = nullptr;
 // ConstBuffer
 struct CB_WVP
 {
-    DirectX::XMFLOAT4X4 ProjectionMatrix;
-    DirectX::XMFLOAT4X4 ModelMatrix;
-    DirectX::XMFLOAT4X4 ViewMatrix;
+    DirectX::XMMATRIX ModelMatrix; // Model to World
+    DirectX::XMMATRIX ViewMatrix; // World to View / Camera 
+    DirectX::XMMATRIX ProjectionMatrix; // View to 2D Projectionw
 };
 
 struct Vertex
@@ -65,6 +66,9 @@ private:
     // Window Size
     UINT Width = 800;
     UINT Height = 600;
+    float NearPlane = 1.0f;
+    float FarPlane = 100.0f;
+
     
     // Tri Data...
     float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
@@ -119,5 +123,9 @@ private:
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
+
+    // World Constants
+    double Time = 0.0;
+    float TimeStep = 0.01;
 
 };
