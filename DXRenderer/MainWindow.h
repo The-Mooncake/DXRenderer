@@ -66,16 +66,18 @@ private:
     // Window Size
     UINT Width = 800;
     UINT Height = 600;
-    float NearPlane = 1.0f;
+    float NearPlane = 0.1f;
     float FarPlane = 100.0f;
 
+    //
+    float FieldOfView = 45.0;
+    float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
     
     // Tri Data...
-    float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
     uint32_t TriIndexBufferData[3] = {0, 1, 2};
-    Vertex VertexBufferData[3] = {{{0.0f, 0.25f * AspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-                                  {{0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-                                  {{-0.25f, -0.25f * AspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}};
+    Vertex VertexBufferData[3] = {{{0.0f, 0.25f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+                                  {{0.25f, -0.25f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+                                  {{-0.25f, -0.25f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}};
     
     // Render State
     bool bDXReady = false;
@@ -126,6 +128,6 @@ private:
 
     // World Constants
     double Time = 0.0;
-    float TimeStep = 0.01;
+    float TimeStep = 0.015;
 
 };

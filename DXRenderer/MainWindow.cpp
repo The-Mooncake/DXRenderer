@@ -672,9 +672,9 @@ void MainWindow::UpdateRender()
     XMMATRIX Rot = DirectX::XMMatrixRotationY(Time);
     Model = DirectX::XMMatrixMultiply(Model, Rot);
 
-    XMMATRIX View = DirectX::XMMatrixLookAtLH({0, 0, -5}, {0, 0, 0}, {0, 1, 0}); // Y is up.
-
-    XMMATRIX Projection = DirectX::XMMatrixPerspectiveFovLH(50, AspectRatio, NearPlane, FarPlane);
+    XMMATRIX View = DirectX::XMMatrixLookAtLH({0, 0, -5, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
+    
+    XMMATRIX Projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
 
     WVP.ModelMatrix = Model;
     WVP.ViewMatrix = View;
@@ -725,7 +725,7 @@ void MainWindow::Render()
     CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps->GetAddressOf());  
     D3D12_GPU_DESCRIPTOR_HANDLE CbHandle(ConstantBufferHeap->GetGPUDescriptorHandleForHeapStart());
     CmdList->SetGraphicsRootDescriptorTable(0, CbHandle);
-    
+
     // Clear Backbuffer...
     // Indicate that the back buffer will be used as a render target.
     D3D12_RESOURCE_BARRIER RtBarrier;
