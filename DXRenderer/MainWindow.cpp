@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <tchar.h>
 #include <wrl.h> // ComPtr
+#include <iostream>
+#include <string>
+#include <format>
 
 // D3D
 #include <d3d12.h>
@@ -42,16 +45,14 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
     hInstance = InHInstance;
     G_MainWindow = this;
     
-    SetupDevice();
-    SetupWindow();
-    SetupSwapChain();
-    SetupMeshPipeline();
+    if (!SetupDevice())         { return; } // return without setting bDXReady to true...
+    if (!SetupWindow())         { return; }
+    if (!SetupSwapChain())      { return; }
+    if (!SetupMeshPipeline())   { return; }
        
     // DX Setup correctly.
     bDXReady = true;
 }
-
-
 
 MainWindow::~MainWindow()
 {
@@ -87,9 +88,10 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     return 0;
 }
 
-void MainWindow::SetupDevice()
+bool MainWindow::SetupDevice()
 {
     HRESULT HR;
+    bool bResult = false;
 
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&DebugController))))
     {
@@ -101,7 +103,7 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create IDXGIDebug1!.", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Setup DX Factory
@@ -110,7 +112,7 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create D3D12 Factory!.", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Get Adapter
@@ -118,13 +120,16 @@ void MainWindow::SetupDevice()
     while (Factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&Adapter)) != DXGI_ERROR_NOT_FOUND)
     {
         HR = Adapter.Get()->GetDesc1(&AdapterDesc);
+        WCHAR wstring[128] = L"Using adapter: ";
+        wcscat_s(wstring, AdapterDesc.Description);
+        OutputDebugStringW(wstring);
         break;
     }
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create D3D12 Factory!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Get the device.
@@ -133,16 +138,16 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create D3D12 device!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     
-    D3D12_COMMAND_QUEUE_DESC cmdQueueDesc{};
-    HR = Device->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(&CmdQueue));
+    D3D12_COMMAND_QUEUE_DESC CmdQueueDesc{};
+    HR = Device->CreateCommandQueue(&CmdQueueDesc, IID_PPV_ARGS(&CmdQueue));
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create command queue!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     HR = Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&CmdAllocator));
@@ -150,7 +155,7 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create command allocator!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     HR = Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CmdAllocator.Get(), 0, IID_PPV_ARGS(&CmdList));
@@ -158,7 +163,7 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create command list!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     CmdList->Close();
 
@@ -168,18 +173,21 @@ void MainWindow::SetupDevice()
     {
         MessageBoxW(nullptr, L"Failed to create DX Fence!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     FenceEvent = CreateEvent(nullptr, false, false, nullptr);
     
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::SetupWindow()
+bool MainWindow::SetupWindow()
 {
+    bool bResult = false;
+
     const TCHAR szWindowClass[] = _T("DXRenderer");
     const TCHAR szTitle[] = _T("Win D3D Renderer - Mooncake");
 
-    
     // Window Info
     WNDCLASSEX wcex;
     wcex.cbSize         = sizeof(WNDCLASSEX);
@@ -203,7 +211,7 @@ void MainWindow::SetupWindow()
            _T("DXRenderer Failed to register window class!"),
            NULL);
 
-        return;
+        return bResult;
     }
     
     // Create the base window
@@ -227,8 +235,7 @@ void MainWindow::SetupWindow()
            _T("DXRenderer Failed to make a window!"),
            NULL);
 
-
-        return;
+        return bResult;
     }
 
     // DX Viewport params
@@ -238,11 +245,15 @@ void MainWindow::SetupWindow()
     Viewport.Height = static_cast<float>(Height);
     Viewport.MinDepth = NearPlane;
     Viewport.MaxDepth = FarPlane;
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::SetupSwapChain()
+bool MainWindow::SetupSwapChain()
 {
     HRESULT HR;
+    bool bResult = false;
 
     // SwapChain
     DXGI_SWAP_CHAIN_DESC1 desc;
@@ -255,14 +266,13 @@ void MainWindow::SetupSwapChain()
     desc.SampleDesc.Count = 1;      //multisampling setting
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-    // Might need to use CreateSwapChainForCoreWindow || CreateSwapchainForComposition...
     ComPtr<IDXGISwapChain1> BaseSwapChain;
     HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &BaseSwapChain);
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create swap chain!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
@@ -280,7 +290,7 @@ void MainWindow::SetupSwapChain()
     {
         MessageBoxW(nullptr, L"Failed to create rtv heap!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -303,17 +313,22 @@ void MainWindow::SetupSwapChain()
             MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
             printf("Failed to get buffer at idx: %d", Idx);
             PostQuitMessage(1);
+            return  bResult;
         }
         Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
 
         // Offset Buffer Handle
         BufferHandle.ptr += RtvHeapOffsetSize;
     }
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::SetupMeshPipeline()
+bool MainWindow::SetupMeshPipeline()
 {
     HRESULT HR;
+    bool bResult = false;
 
     // Load and Compile shaders...
 #if defined(_DEBUG)
@@ -326,31 +341,36 @@ void MainWindow::SetupMeshPipeline()
     {
         MessageBoxW(nullptr, L"Failed to compile vertex shaders!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     HR = D3DCompileFromFile(L"./Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", CompileFlags, 0, &PS, nullptr);
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to compile pixel shaders!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Root Signature
-    SetupRootSignature();
+    if (!SetupRootSignature())  { return false; }
 
     // Create Pipeline State
-    CreateMeshPipeline();
+    if (!CreateMeshPipeline())  { return false; }
 
     // Setup buffers.
-    MeshConstantBuffer();
-    MeshIndexBuffer();
-    MeshVertexBuffer();
+    if (!MeshConstantBuffer())  { return false; }
+    if (!MeshIndexBuffer())     { return false; }
+    if (!MeshVertexBuffer())    { return false; }
+
+    bResult = true;
+    return bResult;
 }
 
 
-void MainWindow::SetupRootSignature()
+bool MainWindow::SetupRootSignature()
 {
+    bool bResult = false;
+
     D3D12_DESCRIPTOR_RANGE1 RtvDescRanges[1];
     RtvDescRanges[0].NumDescriptors = 1;
     RtvDescRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
@@ -381,7 +401,7 @@ void MainWindow::SetupRootSignature()
         MessageBoxW(nullptr, L"Failed to serialize root signature!", L"Error", MB_OK);
         if (ErrorBlob) { ErrorBlob->Release(); }
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     HR = Device->CreateRootSignature(0, SigBlob->GetBufferPointer(), SigBlob->GetBufferSize(), IID_PPV_ARGS(&RootSig));
@@ -389,15 +409,20 @@ void MainWindow::SetupRootSignature()
     {
         MessageBoxW(nullptr, L"Failed to create root signature!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     RootSig->SetName(L"Main Render Root Signature");
     SigBlob->Release();
     if (ErrorBlob) { ErrorBlob->Release(); }
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::CreateMeshPipeline()
+bool MainWindow::CreateMeshPipeline()
 {
+    bool bResult = false;
+
     D3D12_INPUT_ELEMENT_DESC InElementDesc[] =  // Define the vertex input layout.
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -420,6 +445,7 @@ void MainWindow::CreateMeshPipeline()
     D3D12_BLEND_DESC Blend_Desc{};
     Blend_Desc.AlphaToCoverageEnable = false;
     Blend_Desc.IndependentBlendEnable = false;
+
     const D3D12_RENDER_TARGET_BLEND_DESC DefaultRenderTargetBlendDesc =
     {
         false, false,
@@ -442,7 +468,7 @@ void MainWindow::CreateMeshPipeline()
     PipeStateDesc.SampleMask = UINT_MAX;
     PipeStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     PipeStateDesc.NumRenderTargets = 1;
-    PipeStateDesc.RTVFormats[0] = FrameBufferFormat; // Probably should iterate through.
+    PipeStateDesc.RTVFormats[0] = FrameBufferFormat;
     PipeStateDesc.SampleDesc.Count = 1;
 
     HRESULT HR = Device->CreateGraphicsPipelineState(&PipeStateDesc, IID_PPV_ARGS(&PipelineState));
@@ -450,15 +476,18 @@ void MainWindow::CreateMeshPipeline()
     {
         MessageBoxW(nullptr, L"Failed to create graphics pipeline!", L"Error", MB_OK);
         PostQuitMessage(1);
+        return bResult;
     }
     PipelineState->SetName(L"Pipeline State - Mesh");
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::MeshConstantBuffer()
+bool MainWindow::MeshConstantBuffer()
 {
     HRESULT HR;
-
-    //UpdateRender();
+    bool bResult = false;
 
     // Create the Constant Buffer
     D3D12_DESCRIPTOR_HEAP_DESC HeapDesc = {};
@@ -471,7 +500,7 @@ void MainWindow::MeshConstantBuffer()
     {
         MessageBoxW(nullptr, L"Failed to create constant buffer descriptor heap!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     D3D12_HEAP_PROPERTIES HeapProps;
@@ -500,9 +529,8 @@ void MainWindow::MeshConstantBuffer()
     {
         MessageBoxW(nullptr, L"Failed to create constant buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
-
 
     // Create our Constant Buffer View
     D3D12_CONSTANT_BUFFER_VIEW_DESC CbvDesc = {};
@@ -525,19 +553,23 @@ void MainWindow::MeshConstantBuffer()
     {
         MessageBoxW(nullptr, L"Failed to map constant buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     memcpy(MappedConstantBuffer, &WVP, sizeof(WVP));
     ConstantBuffer->Unmap(0, &ReadRange);
 
     ConstantBufferHeap->SetName(L"Constant Buffer Upload Resource Heap");
     ConstantBuffer->SetName(L"Constant Buffer");
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::MeshVertexBuffer()
+bool MainWindow::MeshVertexBuffer()
 {
     HRESULT HR;
-    
+    bool bResult = false;
+
     const UINT VertexBufferSize = sizeof(VertexBufferData);
 
     D3D12_HEAP_PROPERTIES HeapProps;
@@ -566,7 +598,7 @@ void MainWindow::MeshVertexBuffer()
     {
         MessageBoxW(nullptr, L"Failed to create vertex buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Copy the triangle data to the vertex buffer.
@@ -582,6 +614,7 @@ void MainWindow::MeshVertexBuffer()
     {
         MessageBoxW(nullptr, L"Failed to map vertex buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
+        return bResult;
     }
     memcpy(VertexDataBegin, VertexBufferData, sizeof(VertexBufferData));
     VertexBuffer->Unmap(0, nullptr);
@@ -597,11 +630,15 @@ void MainWindow::MeshVertexBuffer()
     FenceValue = 1;
     FenceEvent = CreateEvent(nullptr, false, false, nullptr);
     WaitForPreviousFrame();
+
+    bResult = true;
+    return bResult;
 }
 
-void MainWindow::MeshIndexBuffer()
+bool MainWindow::MeshIndexBuffer()
 {
     HRESULT HR;
+    bool bResult = false;
     
     // Declare Handles
     const UINT IndexBufferSize = sizeof(TriIndexBufferData);
@@ -633,7 +670,7 @@ void MainWindow::MeshIndexBuffer()
     {
         MessageBoxW(nullptr, L"Failed to create index buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
 
     // Copy data to DirectX 12 driver memory:
@@ -649,7 +686,7 @@ void MainWindow::MeshIndexBuffer()
     {
         MessageBoxW(nullptr, L"Failed to Map index buffer!", L"Error", MB_OK);
         PostQuitMessage(1);
-        return;
+        return bResult;
     }
     memcpy(pVertexDataBegin, TriIndexBufferData, sizeof(TriIndexBufferData));
     IndexBuffer->Unmap(0, nullptr);
@@ -660,6 +697,9 @@ void MainWindow::MeshIndexBuffer()
     IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
     IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
     IndexBufferView.SizeInBytes = IndexBufferSize;
+
+    bResult = true;
+    return bResult;
 }
 
 void MainWindow::UpdateRender()
@@ -667,13 +707,13 @@ void MainWindow::UpdateRender()
     // Update things like camera pos, view, and time, etc...
     Time += TimeStep;
 
-    // Using Left handed coordinate systems.
+    // Using Left handed coordinate systems, but matrices need to be transposed for hlsl.
     XMMATRIX Model = DirectX::XMMatrixIdentity();
-    XMMATRIX Rot = DirectX::XMMatrixRotationY(Time);
+    XMMATRIX Rot = DirectX::XMMatrixRotationY(static_cast<float>(Time));
     WVP.ModelMatrix = DirectX::XMMatrixMultiply(Model, Rot);
     WVP.ModelMatrix = DirectX::XMMatrixTranspose(WVP.ModelMatrix);
     
-    WVP.ViewMatrix = DirectX::XMMatrixLookAtLH({0, 0, -5, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
+    WVP.ViewMatrix = DirectX::XMMatrixLookAtLH({0, 0, -2, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
     WVP.ViewMatrix = DirectX::XMMatrixTranspose(WVP.ViewMatrix);
 
     WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
@@ -769,12 +809,12 @@ void MainWindow::Render()
 
     CmdQueue->ExecuteCommandLists(_countof(CmdLists), CmdLists);
     
-    DXGI_PRESENT_PARAMETERS dxgiParams = {};
-    HR = SwapChain->Present(1, 0); //, &dxgiParams);
+    HR = SwapChain->Present(1, 0);
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to present swap chain!", L"Error", MB_OK);
         PostQuitMessage(1);
+        return;
     }
     
     // Not the best practice, however works for this example...
@@ -785,7 +825,6 @@ void MainWindow::Render()
 
 }
 
-
 int MainWindow::Run()
 {
     if (!bDXReady) { return 1; }
@@ -795,32 +834,29 @@ int MainWindow::Run()
     UpdateWindow(hWnd);
     
     // Message loop
-    MSG msg;
-    msg.message = WM_NULL;
-    PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE);
+    MSG Msg;
+    Msg.message = WM_NULL;
+    PeekMessage(&Msg, nullptr, 0, 0, PM_NOREMOVE);
     
-    while (msg.message != WM_QUIT)
+    while (Msg.message != WM_QUIT)
     {
-        bool bMsg = (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) != 0);
+        bool bMsg = (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE) != 0);
     
         if (bMsg)
         {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            TranslateMessage(&Msg);
+            DispatchMessage(&Msg);
         }
         else
         {
-            // Update renderer.
-            // Currently done in the Paint message.
-
-            //Update();
-            //Render();
-
+            // Update renderer when no messages received...
+            UpdateRender();
+            Render();
         }
     
     }
 
-    return static_cast<int>(msg.wParam);
+    return static_cast<int>(Msg.wParam);
 }
 
 void MainWindow::WaitForPreviousFrame()
@@ -837,5 +873,5 @@ void MainWindow::WaitForPreviousFrame()
         WaitForSingleObject(FenceEvent, INFINITE);
     }
 
-    CurrentBackBuffer= SwapChain->GetCurrentBackBufferIndex();
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }

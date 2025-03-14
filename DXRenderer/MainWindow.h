@@ -1,5 +1,6 @@
 #pragma once
 
+// Common
 #include <windows.h>
 #include <wrl/client.h>
 #include <stdlib.h>
@@ -44,32 +45,31 @@ public:
 
 private:
     // Main Setup Steps
-    void SetupDevice();
-    void SetupWindow();
-    void SetupSwapChain();
-    void SetupMeshPipeline();
+    bool SetupDevice();
+    bool SetupWindow();
+    bool SetupSwapChain();
+    bool SetupMeshPipeline();
     
     // Main render loop.
     void UpdateRender();
     void Render();
 
     // Setup Helpers
-    void SetupRootSignature();
-    void CreateMeshPipeline();
-    void MeshConstantBuffer();
-    void MeshVertexBuffer();
-    void MeshIndexBuffer();
+    bool SetupRootSignature();
+    bool CreateMeshPipeline();
+    bool MeshConstantBuffer();
+    bool MeshVertexBuffer();
+    bool MeshIndexBuffer();
 
     // Timing
     void WaitForPreviousFrame();
     
-    // Window Size
+    // Window and Viewport
     UINT Width = 800;
     UINT Height = 600;
     float NearPlane = 0.1f;
     float FarPlane = 100.0f;
 
-    //
     float FieldOfView = 45.0;
     float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
     
@@ -114,7 +114,6 @@ private:
     HANDLE FenceEvent;
 
     // Mesh Buffers
-    CB_WVP WVP; // World View Projection buffer.
     D3D12_INDEX_BUFFER_VIEW IndexBufferView;
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
     ComPtr<ID3D12Resource> VertexBuffer;
@@ -127,7 +126,8 @@ private:
     HWND hWnd = nullptr;
 
     // World Constants
+    CB_WVP WVP; // World View Projection buffer.
     double Time = 0.0;
-    float TimeStep = 0.01;
+    float TimeStep = 0.01f;
 
 };
