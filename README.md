@@ -5,4 +5,4 @@ Currently I am rendering a simple rotating triangle.
 
 https://github.com/user-attachments/assets/e1be8af1-7750-41a0-932f-074c2e1856a3
 
-Hoping to add further mesh, lighting, and shading support in the future. 
+Next upp: add further mesh, lighting, and shading support. 
