@@ -2,9 +2,9 @@
 
 cbuffer CB_WVP : register(b0)
 {
-    row_major float4x4 ModelMatrix : packoffset(c4);
-    row_major float4x4 ViewMatrix : packoffset(c8);
-    row_major float4x4 ProjectionMatrix : packoffset(c0);
+    float4x4 ModelMatrix : packoffset(c0);
+    float4x4 ViewMatrix : packoffset(c4);
+    float4x4 ProjectionMatrix : packoffset(c8);
 };
 
 struct VS_INPUT
@@ -25,7 +25,7 @@ VS_OUTPUT VSMain(VS_INPUT In)
     Out.Position = mul(float4(In.Position, 1.0f), ModelMatrix);
     Out.Position = mul(Out.Position, ViewMatrix);
     Out.Position = mul(Out.Position, ProjectionMatrix);
-    
+
     Out.Colour = In.Colour;
     
     return Out;

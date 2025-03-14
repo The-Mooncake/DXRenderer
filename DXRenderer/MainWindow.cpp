@@ -670,15 +670,14 @@ void MainWindow::UpdateRender()
     // Using Left handed coordinate systems.
     XMMATRIX Model = DirectX::XMMatrixIdentity();
     XMMATRIX Rot = DirectX::XMMatrixRotationY(Time);
-    Model = DirectX::XMMatrixMultiply(Model, Rot);
-
-    XMMATRIX View = DirectX::XMMatrixLookAtLH({0, 0, -5, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
+    WVP.ModelMatrix = DirectX::XMMatrixMultiply(Model, Rot);
+    WVP.ModelMatrix = DirectX::XMMatrixTranspose(WVP.ModelMatrix);
     
-    XMMATRIX Projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
+    WVP.ViewMatrix = DirectX::XMMatrixLookAtLH({0, 0, -5, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
+    WVP.ViewMatrix = DirectX::XMMatrixTranspose(WVP.ViewMatrix);
 
-    WVP.ModelMatrix = Model;
-    WVP.ViewMatrix = View;
-    WVP.ProjectionMatrix = Projection;
+    WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
+    WVP.ProjectionMatrix = DirectX::XMMatrixTranspose(WVP.ProjectionMatrix);
 
     // Update constant buffer.
     D3D12_RANGE ReadRange;
