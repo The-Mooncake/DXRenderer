@@ -56,7 +56,7 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
 MainWindow::~MainWindow()
 {
-    WaitForPreviousFrame();
+    if (CmdQueue) { WaitForPreviousFrame(); }
     CloseHandle(FenceEvent);
     G_MainWindow = nullptr;
     FrameBuffers.clear();
@@ -122,6 +122,7 @@ bool MainWindow::SetupDevice()
         HR = Adapter.Get()->GetDesc1(&AdapterDesc);
         WCHAR wstring[128] = L"Using adapter: ";
         wcscat_s(wstring, AdapterDesc.Description);
+        wcscat_s(wstring, L"\n");
         OutputDebugStringW(wstring);
         break;
     }
