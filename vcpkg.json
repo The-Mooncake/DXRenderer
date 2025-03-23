@@ -1,6 +1,14 @@
 {
   "dependencies": [
-    "directx12-agility"
+    "directx12-agility",
+    "tbb",
+    "usd"
+  ],
+  "overrides": [
+    {
+      "name": "tbb",
+      "version-string": "2020_U3#8"
+    }
   ],
   "builtin-baseline": "ec75733d5cff14c7eb4f20a02f44d1893890e6db"
 }

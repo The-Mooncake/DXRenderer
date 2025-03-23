@@ -29,8 +29,17 @@ set(CMAKE_CONFIGURATION_TYPES
 # Global compiler options
 ################################################################################
 
-set(CMAKE_C_STANDARD_REQUIRED on)
-set(CMAKE_C_STANDARD "/std:c17")
+#set(CMAKE_C_STANDARD_REQUIRED on)
+#set(CMAKE_C_STANDARD "/std:c17")
+
+# set(PXR_CONFIG_CMAKE ""
+#     CACHE
+#     STRING
+#     "Path to the pxrConfig.cmake file, located in the USD install folder by default."
+# )
+#include(${PXR_CONFIG_CMAKE})
+
+#set(PXR_INSTALL_LOCATION "${BIN_DIR}/Debug/")
 
 ################################################################################
 # Common utils
@@ -50,5 +59,12 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ################################################################################
 # Sub-projects
 ################################################################################
+
+# # PXR Flags
+# set(OPENVDB_BUILD_PYTHON_MODULE OFF)  
+# set(PXR_ENABLE_PYTHON_SUPPORT OFF)  
+# set(PXR_BUILD_IMAGING OFF) 
+# set(PXR_BUILD_USD_IMAGING OFF)  
+
 add_subdirectory(Src)
 
