@@ -29,22 +29,8 @@ set(CMAKE_CONFIGURATION_TYPES
 # Global compiler options
 ################################################################################
 
-#set(CMAKE_C_STANDARD_REQUIRED on)
-#set(CMAKE_C_STANDARD "/std:c17")
-
-# set(PXR_CONFIG_CMAKE ""
-#     CACHE
-#     STRING
-#     "Path to the pxrConfig.cmake file, located in the USD install folder by default."
-# )
-#include(${PXR_CONFIG_CMAKE})
-
+# If using prebuilt usd from source.
 #set(PXR_INSTALL_LOCATION "${BIN_DIR}/Debug/")
-
-################################################################################
-# Common utils
-################################################################################
-#include(CMake/Utils.cmake)
 
 ################################################################################
 # Additional Global Settings(add specific info there)

@@ -97,32 +97,32 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 ################################################################################
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Debug>:
-            /Od
-        >
-        $<$<CONFIG:Release>:
-            /O2;
-            /Oi;
-            /Gy
-        >
-        /permissive-;
-        /sdl;
-        /W3;
-        ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
-        ${DEFAULT_CXX_EXCEPTION_HANDLING};
-        /Y-
+        "$<$<CONFIG:Debug>:"
+            "/Od"
+        ">"
+        "$<$<CONFIG:Release>:"
+            "/O2;"
+            "/Oi;"
+            "/Gy"
+        ">"
+        "/permissive-;"
+        "/sdl;"
+        "/W3;"
+        "${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};"
+        "${DEFAULT_CXX_EXCEPTION_HANDLING};"
+        "/Y-"
     )
     target_link_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Debug>:
-            /INCREMENTAL
-        >
-        $<$<CONFIG:Release>:
-            /OPT:REF;
-            /OPT:ICF;
-            /INCREMENTAL:NO
-        >
-        /DEBUG;
-        /SUBSYSTEM:WINDOWS
+        "$<$<CONFIG:Debug>:"
+            "/INCREMENTAL"
+        ">"
+        "$<$<CONFIG:Release>:"
+            "/OPT:REF;"
+            "/OPT:ICF;"
+            "/INCREMENTAL:NO"
+        ">"
+        "/DEBUG;"
+        "/SUBSYSTEM:WINDOWS"
     )
 endif()
 
