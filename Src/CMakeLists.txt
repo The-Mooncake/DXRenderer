@@ -5,12 +5,14 @@ set(PROJECT_NAME DXRenderer)
 ################################################################################
 set(Header_Files
     "MainWindow.h"
+    "USDReader.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     "DXRenderer.cpp"
     "MainWindow.cpp"
+    "USDReader.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 
