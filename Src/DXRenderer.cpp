@@ -9,7 +9,7 @@
 // Useful USD References: https://github.com/LittleCoinCoin/OpenUSD-setup-vcpkg-template/blob/main/OpenUSD-setup-vcpkg/src/main.cpp
 
 #include "pxr/usd/usd/stage.h"
-#include <pxr/usd/usdGeom/xform.h>
+#include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/sphere.h"
 #include "pxr/usd/sdf/path.h"
 

@@ -131,23 +131,24 @@ endif()
 ################################################################################
 
 # Find D3D12
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx-headers")
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx12-agility")
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx-headers")
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx12-agility")
 
-find_package(directx-headers CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx-headers" NO_DEFAULT_PATH)
-find_package(directx12-agility CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx12-agility" NO_DEFAULT_PATH)
+#find_package(directx-headers CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx-headers" NO_DEFAULT_PATH)
+#find_package(directx12-agility CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_installed/x64-windows/share/directx12-agility" NO_DEFAULT_PATH)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 target_link_libraries(${PROJECT_NAME} PRIVATE d3d12.lib dxgi.lib d3dcompiler.lib dxguid.lib) # Probably not using vcpkg libs.
 
 # TBB
-find_package(TBB CONFIG REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
+#set(TBB_DIR "${PROJECT_DIR}/_deps/usd-build/")
+#find_package(TBB CONFIG REQUIRED)
+#target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
 
 
 # USD
-#set(pxr_DIR "${CMAKE_SOURCE_DIR}/OpenUSDBuild") # Built USD
-find_package(pxr CONFIG REQUIRED)
+set(pxr_DIR "${PROJECT_DIR}/_deps/usd-build") # Built USD
+find_package(pxr REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
 ar
 arch
@@ -177,7 +178,10 @@ vt
 work
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_DIR}/vcpkg_installed/x64-windows/include")
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_DIR}/_deps/usd-build/include")
+
+# usd projects can't find tbb includes!
+#target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_DIR}/vcpkg_installed/x64-windows/include")
 
 # Output file copying and directory creation.
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -196,27 +200,24 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
     #vcpkg
     # USD - copies pdbs
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Debug/usd/"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Release/usd/"
+    # COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Debug/usd/"
+    # COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Release/usd/"
 
-    # dlls/pdbs
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/debug/bin" "${BIN_DIR}/Debug/"
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd" "${BIN_DIR}/Release/"
+    # # dlls/pdbs
+	# COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/debug/bin" "${BIN_DIR}/Debug/"
+	# COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd" "${BIN_DIR}/Release/"
 	
-    # Resources
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/debug/bin/usd" "${BIN_DIR}/Debug/usd"
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/bin/usd" "${BIN_DIR}/Release/usd"
+    # # Resources
+	# COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/debug/bin/usd" "${BIN_DIR}/Debug/usd"
+	# COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/vcpkg_installed/x64-windows/bin/usd" "${BIN_DIR}/Release/usd"
 
-	# PlugInfo
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Debug/usd/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Release/usd/"
+	# # PlugInfo
+	# COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Debug/usd/"
+    # COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Release/usd/"
 	
-    # built usd - Works
-    #COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Debug/lib/usd/"
-    #COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Release/lib/usd/"
-
-	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${CMAKE_SOURCE_DIR}/OpenUSDBuild/lib" "${BIN_DIR}/Debug/"
-	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${CMAKE_SOURCE_DIR}/OpenUSDBuild/lib" "${BIN_DIR}/Release/"
+    # # built usd - Works
+	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/_deps/usd-build/lib" "${BIN_DIR}/Debug/"
+	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${PROJECT_DIR}/_deps/usd-build/lib" "${BIN_DIR}/Release/"
 	
 
 )
