@@ -1,5 +1,7 @@
 #include "USDReader.h"
 
+#include "RenderMesh.h"
+
 // USD
 #include <iostream>
 
@@ -15,37 +17,35 @@ using namespace pxr;
 
 void USDReader::LoadScene(const std::string& Path)
 {
-    //pxr::UsdStageLoadRules
+    Stage = UsdStage::Open(Path);
     
-    Stage =  UsdStage::Open(Path);
     UsdPrimRange Prims = Stage->TraverseAll();
 
     for (UsdPrim Prim : Prims)
     {
-        std::cout << "Prim name: " << Prim.GetName() << std::endl;
-        std::cout << "Path: " << Prim.GetPath() << std::endl;
-        std::cout << "Type: " << Prim.GetTypeName() << std::endl;
-        std ::cout << "\n";
-
+        if (!Prim.IsValid()) { continue; }
+        
+        SdfPath PrimPath = Prim.GetPath();
         TfToken Type = Prim.GetTypeName();
-        switch (Type)
+        
+        std::cout << "Prim name: " << Prim.GetName() << std::endl;
+        std::cout << "Path: " << PrimPath << std::endl;
+        std::cout << "Type: " << Type << std::endl;
+        std ::cout << "\n";
+        
+        if (Type == TfToken("Xform"))
         {
-            case TfToken("Xform"):
-                break;
-            case TfToken("Mesh"):
-                LoadMesh();
-                break;
-
-            default:
-                std::cout << "Type: " << Type << " not supported." "\n";
-                
+            std::cout << "Processing Xform..." << "\n";
+        }
+        else if (Type == TfToken("Mesh"))
+        {
+            std::shared_ptr<RenderMesh> Mesh = std::make_shared<RenderMesh>(this);
+            Mesh->Load(Prim);
+            Meshes.emplace_back(Mesh);
+        }
+        else
+        {
+            std::cout << "Processing unsupported type: " << Prim.GetTypeName() << "\n";
         }
     }
-
-}
-
-void USDReader::LoadMesh()
-{
-
-    
 }

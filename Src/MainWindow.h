@@ -6,12 +6,13 @@
 #include <stdlib.h>
 #include <vector>
 
+#include "pch.h"
+
 // DX
 #include <d3dcommon.h>
 #include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
-#include <DirectXMath.h>
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
 

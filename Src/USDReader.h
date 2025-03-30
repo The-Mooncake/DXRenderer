@@ -18,10 +18,8 @@ public:
     void LoadExampleCube() { LoadScene(RendererAssets::Cube); } 
 
 private:
-
-    void LoadMesh();
-
-private:
     pxr::UsdStageRefPtr Stage;
+
+    std::vector<std::shared_ptr<class RenderMesh>> Meshes;
     
 };

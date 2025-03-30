@@ -479,7 +479,7 @@ bool MainWindow::CreateMeshPipeline()
         PostQuitMessage(1);
         return bResult;
     }
-    PipelineState->SetName(L"Pipeline State - Mesh");
+    PipelineState->SetName(L"Pipeline State (PSO) - Mesh");
 
     bResult = true;
     return bResult;
@@ -781,7 +781,7 @@ void MainWindow::Render()
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
     CmdList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
 
-    // Clear Backbuffer
+    // Set clear colour
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
     
