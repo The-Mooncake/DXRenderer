@@ -1,30 +1,27 @@
 #pragma once
 
+
 // Common
-#include <windows.h>
 #include <wrl/client.h>
 #include <stdlib.h>
 #include <vector>
+
+#include "pch.h"
 
 // DX
 #include <d3dcommon.h>
 #include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
-#include <DirectXMath.h>
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
-
-// Global ptr to the main window instance.
-static class MainWindow* G_MainWindow = nullptr;
-
 
 // ConstBuffer
 struct CB_WVP
 {
     DirectX::XMMATRIX ModelMatrix = DirectX::XMMatrixIdentity(); // Model to World
     DirectX::XMMATRIX ViewMatrix = DirectX::XMMatrixIdentity(); // World to View / Camera 
-    DirectX::XMMATRIX ProjectionMatrix = DirectX::XMMatrixIdentity(); // View to 2D Projectionw
+    DirectX::XMMATRIX ProjectionMatrix = DirectX::XMMatrixIdentity(); // View to 2D Projection
 };
 
 struct Vertex
@@ -33,25 +30,21 @@ struct Vertex
     DirectX::XMFLOAT4 Colour;
 };
 
-class MainWindow
+class Renderer
 {
 public:
-
-    MainWindow(HINSTANCE InHInstance);
-    ~MainWindow();
-
-    int Run();
-    static LRESULT CALLBACK WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-private:
-    // Main Setup Steps
+    Renderer();
+    ~Renderer();
+    
+    // Rendering Setup
+    bool SetupRenderer();
+    
     bool SetupDevice();
-    bool SetupWindow();
     bool SetupSwapChain();
     bool SetupMeshPipeline();
     
     // Main render loop.
-    void UpdateRender();
+    void Update();
     void Render();
 
     // Setup Helpers
@@ -120,14 +113,8 @@ private:
     ComPtr<ID3D12Resource> IndexBuffer;    
     ComPtr<ID3D12Resource> ConstantBuffer;
     ComPtr<ID3D12DescriptorHeap> ConstantBufferHeap;
-    
-    // Windows Ptrs
-    HINSTANCE hInstance = nullptr;
-    HWND hWnd = nullptr;
 
     // World Constants
     CB_WVP WVP; // World View Projection buffer.
-    double Time = 0.0;
-    float TimeStep = 0.01f;
 
 };

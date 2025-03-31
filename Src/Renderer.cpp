@@ -1,24 +1,9 @@
-#include "MainWindow.h"
+#include "Renderer.h"
 
-// Windows
-#include <cstdio>
-#include <tchar.h>
-#include <wrl.h> // ComPtr
-#include <iostream>
-#include <string>
-#include <format>
-
-// D3D
-#include <d3d12.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
-#include <DirectXMath.h>
-#include <dxgi.h>
-#include <dxcapi.h>
-#include <dxgi1_6.h>
-#include <dxgi1_3.h>
-#include <vector>
 
+#include "MainWindow.h"
 
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
@@ -40,55 +25,31 @@ using namespace DirectX;
 // https://github.com/alaingalvan/directx12-seed/tree/master/src
 // https://whoisryosuke.com/blog/2023/learning-directx-12-in-2023 - Lots of links to other tutorial series.
 
-MainWindow::MainWindow(HINSTANCE InHInstance)
+
+Renderer::Renderer()
 {
-    hInstance = InHInstance;
-    G_MainWindow = this;
-    
-    if (!SetupDevice())         { return; } // return without setting bDXReady to true...
-    if (!SetupWindow())         { return; }
-    if (!SetupSwapChain())      { return; }
-    if (!SetupMeshPipeline())   { return; }
-       
-    // DX Setup correctly.
-    bDXReady = true;
 }
 
-MainWindow::~MainWindow()
+Renderer::~Renderer()
 {
-    WaitForPreviousFrame();
+    if (CmdQueue) { WaitForPreviousFrame(); }
     CloseHandle(FenceEvent);
-    G_MainWindow = nullptr;
     FrameBuffers.clear();
 }
 
-LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+bool Renderer::SetupRenderer()
 {
-    switch (message)
-    {
-    case WM_CLOSE:
-        DestroyWindow(hWnd);
-        break;
-        
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-        
-    case WM_PAINT:
-        G_MainWindow->UpdateRender();
-        G_MainWindow->Render();
-        break;
-
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-        break;
-        
-    }
-
-    return 0;
+    if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
+    if (!G_MainWindow->SetupWindow(Width, Height))  { return false ; }
+    if (!SetupSwapChain())                          { return false; }
+    if (!SetupMeshPipeline())                       { return false; }
+       
+    // DX Setup correctly.
+    bDXReady = true;
+    return bDXReady;
 }
 
-bool MainWindow::SetupDevice()
+bool Renderer::SetupDevice()
 {
     HRESULT HR;
     bool bResult = false;
@@ -122,6 +83,7 @@ bool MainWindow::SetupDevice()
         HR = Adapter.Get()->GetDesc1(&AdapterDesc);
         WCHAR wstring[128] = L"Using adapter: ";
         wcscat_s(wstring, AdapterDesc.Description);
+        wcscat_s(wstring, L"\n");
         OutputDebugStringW(wstring);
         break;
     }
@@ -177,67 +139,6 @@ bool MainWindow::SetupDevice()
     }
     FenceEvent = CreateEvent(nullptr, false, false, nullptr);
     
-    bResult = true;
-    return bResult;
-}
-
-bool MainWindow::SetupWindow()
-{
-    bool bResult = false;
-
-    const TCHAR szWindowClass[] = _T("DXRenderer");
-    const TCHAR szTitle[] = _T("Win D3D Renderer - Mooncake");
-
-    // Window Info
-    WNDCLASSEX wcex;
-    wcex.cbSize         = sizeof(WNDCLASSEX);
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = MainWindow::WinProcedure;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(wcex.hInstance, IDI_APPLICATION);
-    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = NULL;
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, IDI_APPLICATION);
-    
-    // Register Window
-    if (!RegisterClassEx(&wcex))
-    {
-        MessageBox(NULL,
-           _T("Call to RegisterClassEx failed!"),
-           _T("DXRenderer Failed to register window class!"),
-           NULL);
-
-        return bResult;
-    }
-    
-    // Create the base window
-    hWnd = CreateWindowEx(
-        WS_EX_OVERLAPPEDWINDOW,
-        szWindowClass,
-        szTitle,
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        static_cast<int>(Width), static_cast<int>(Height),
-        nullptr,
-        nullptr,
-        hInstance,
-       nullptr
-    );
-    if (!hWnd)
-    {
-        printf("Error: %d\n", GetLastError());
-        MessageBox(NULL,
-           _T("Call to CreateWindowEx failed!"),
-           _T("DXRenderer Failed to make a window!"),
-           NULL);
-
-        return bResult;
-    }
-
     // DX Viewport params
     Viewport.TopLeftX = 0.0f;
     Viewport.TopLeftY = 0.0f;
@@ -245,12 +146,12 @@ bool MainWindow::SetupWindow()
     Viewport.Height = static_cast<float>(Height);
     Viewport.MinDepth = NearPlane;
     Viewport.MaxDepth = FarPlane;
-
+    
     bResult = true;
     return bResult;
 }
 
-bool MainWindow::SetupSwapChain()
+bool Renderer::SetupSwapChain()
 {
     HRESULT HR;
     bool bResult = false;
@@ -267,7 +168,7 @@ bool MainWindow::SetupSwapChain()
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
     ComPtr<IDXGISwapChain1> BaseSwapChain;
-    HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), hWnd, &desc, nullptr, nullptr, &BaseSwapChain);
+    HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), G_MainWindow->GetHWND(), &desc, nullptr, nullptr, &BaseSwapChain);
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create swap chain!", L"Error", MB_OK);
@@ -277,7 +178,7 @@ bool MainWindow::SetupSwapChain()
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 
-    Factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER);
+    Factory->MakeWindowAssociation(G_MainWindow->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
     SwapChain->ResizeBuffers(2, Width, Height, FrameBufferFormat, 0);
 
     // RTV Heaps
@@ -325,7 +226,7 @@ bool MainWindow::SetupSwapChain()
     return bResult;
 }
 
-bool MainWindow::SetupMeshPipeline()
+bool Renderer::SetupMeshPipeline()
 {
     HRESULT HR;
     bool bResult = false;
@@ -366,8 +267,7 @@ bool MainWindow::SetupMeshPipeline()
     return bResult;
 }
 
-
-bool MainWindow::SetupRootSignature()
+bool Renderer::SetupRootSignature()
 {
     bool bResult = false;
 
@@ -419,7 +319,7 @@ bool MainWindow::SetupRootSignature()
     return bResult;
 }
 
-bool MainWindow::CreateMeshPipeline()
+bool Renderer::CreateMeshPipeline()
 {
     bool bResult = false;
 
@@ -478,13 +378,13 @@ bool MainWindow::CreateMeshPipeline()
         PostQuitMessage(1);
         return bResult;
     }
-    PipelineState->SetName(L"Pipeline State - Mesh");
+    PipelineState->SetName(L"Pipeline State (PSO) - Mesh");
 
     bResult = true;
     return bResult;
 }
 
-bool MainWindow::MeshConstantBuffer()
+bool Renderer::MeshConstantBuffer()
 {
     HRESULT HR;
     bool bResult = false;
@@ -565,7 +465,7 @@ bool MainWindow::MeshConstantBuffer()
     return bResult;
 }
 
-bool MainWindow::MeshVertexBuffer()
+bool Renderer::MeshVertexBuffer()
 {
     HRESULT HR;
     bool bResult = false;
@@ -635,7 +535,7 @@ bool MainWindow::MeshVertexBuffer()
     return bResult;
 }
 
-bool MainWindow::MeshIndexBuffer()
+bool Renderer::MeshIndexBuffer()
 {
     HRESULT HR;
     bool bResult = false;
@@ -702,14 +602,28 @@ bool MainWindow::MeshIndexBuffer()
     return bResult;
 }
 
-void MainWindow::UpdateRender()
+void Renderer::WaitForPreviousFrame()
 {
-    // Update things like camera pos, view, and time, etc...
-    Time += TimeStep;
+    // Signal and increment the fence value.
+    const UINT64 CurrentFence = FenceValue;
+    (CmdQueue->Signal(Fence.Get(), CurrentFence));
+    FenceValue++;
 
+    // Wait until the previous frame is finished.
+    if (Fence->GetCompletedValue() < CurrentFence)
+    {
+        Fence->SetEventOnCompletion(CurrentFence, FenceEvent);
+        WaitForSingleObject(FenceEvent, INFINITE);
+    }
+
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
+}
+
+void Renderer::Update()
+{
     // Using Left handed coordinate systems, but matrices need to be transposed for hlsl.
     XMMATRIX Model = DirectX::XMMatrixIdentity();
-    XMMATRIX Rot = DirectX::XMMatrixRotationY(static_cast<float>(Time));
+    XMMATRIX Rot = DirectX::XMMatrixRotationY(static_cast<float>(G_MainWindow->GetTime()));
     WVP.ModelMatrix = DirectX::XMMatrixMultiply(Model, Rot);
     WVP.ModelMatrix = DirectX::XMMatrixTranspose(WVP.ModelMatrix);
     
@@ -735,7 +649,7 @@ void MainWindow::UpdateRender()
     ConstantBuffer->Unmap(0, &ReadRange);
 }
 
-void MainWindow::Render()
+void Renderer::Render()
 {
     HRESULT HR;
     
@@ -780,7 +694,7 @@ void MainWindow::Render()
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
     CmdList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
 
-    // Clear Backbuffer
+    // Set clear colour
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     CmdList->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
     
@@ -823,55 +737,4 @@ void MainWindow::Render()
     // Update index.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 
-}
-
-int MainWindow::Run()
-{
-    if (!bDXReady) { return 1; }
-    
-    // Show, its hidden by default.
-    ShowWindow(hWnd, SW_SHOW);
-    UpdateWindow(hWnd);
-    
-    // Message loop
-    MSG Msg;
-    Msg.message = WM_NULL;
-    PeekMessage(&Msg, nullptr, 0, 0, PM_NOREMOVE);
-    
-    while (Msg.message != WM_QUIT)
-    {
-        bool bMsg = (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE) != 0);
-    
-        if (bMsg)
-        {
-            TranslateMessage(&Msg);
-            DispatchMessage(&Msg);
-        }
-        else
-        {
-            // Update renderer when no messages received...
-            UpdateRender();
-            Render();
-        }
-    
-    }
-
-    return static_cast<int>(Msg.wParam);
-}
-
-void MainWindow::WaitForPreviousFrame()
-{
-    // Signal and increment the fence value.
-    const UINT64 CurrentFence = FenceValue;
-    (CmdQueue->Signal(Fence.Get(), CurrentFence));
-    FenceValue++;
-
-    // Wait until the previous frame is finished.
-    if (Fence->GetCompletedValue() < CurrentFence)
-    {
-        Fence->SetEventOnCompletion(CurrentFence, FenceEvent);
-        WaitForSingleObject(FenceEvent, INFINITE);
-    }
-
-    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }
