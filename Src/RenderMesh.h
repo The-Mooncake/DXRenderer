@@ -1,8 +1,9 @@
 #pragma once
 
-#include "USDReader.h"
+#include "USDScene.h"
 #include "pch.h"
 
+// Struct of vertex vector data, e.g. vtx positions...
 struct MeshData
 {
     std::vector<uint32_t> Indices;
@@ -14,7 +15,7 @@ struct MeshData
 class RenderMesh
 {
 public:
-    RenderMesh(const USDReader* InReader);
+    RenderMesh(const USDScene* InReader);
     void Load(class pxr::UsdPrim& Mesh);
 
     std::shared_ptr<MeshData> GetMeshData() { return SharedMeshData; }
@@ -33,7 +34,7 @@ private:
     bool CopyDXFloat2Data(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT2>& DestArray);
 
 private:
-    const USDReader* Reader;
+    const USDScene* Reader;
     std::shared_ptr<MeshData> SharedMeshData;
 };
 

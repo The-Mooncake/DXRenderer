@@ -1,4 +1,4 @@
-#include "USDReader.h"
+#include "USDScene.h"
 
 #include "RenderMesh.h"
 
@@ -15,7 +15,7 @@
 
 using namespace pxr;
 
-void USDReader::LoadScene(const std::string& Path)
+void USDScene::LoadScene(const std::string& Path)
 {
     Stage = UsdStage::Open(Path);
     

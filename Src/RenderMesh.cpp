@@ -20,7 +20,7 @@ namespace
     char const* AttrUVs = "primvars:st";
 }
 
-RenderMesh::RenderMesh(const USDReader* InReader)
+RenderMesh::RenderMesh(const USDScene* InReader)
 {
     if (InReader == nullptr)
     {

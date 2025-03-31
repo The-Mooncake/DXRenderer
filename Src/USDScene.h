@@ -10,7 +10,7 @@ namespace RendererAssets
     const std::string Cube = std::string("C:/Users/olive/Documents/DXRenderer/Meshes/Cube.usda");
 }
 
-class USDReader
+class USDScene
 {
 public:
     void LoadScene(const std::string& Path);
