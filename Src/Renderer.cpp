@@ -286,7 +286,6 @@ bool Renderer::SetupMeshRootSignature()
 void Renderer::BeginFrame()
 {
     HRESULT HR;
-    
     // Reset the allocator.
     HR = CmdAllocator->Reset();
     if (FAILED(HR))
@@ -414,20 +413,19 @@ void Renderer::Update()
 void Renderer::Render()
 {
     HRESULT HR;
-
-    // Create command Lists
-    BeginFrame();
-    MidFrame();
-    EndFrame();
-
+    
     // Build and execute the command list.
     Cmds.clear();
     
+    BeginFrame();
     Cmds.emplace_back(CmdListBeginFrame.Get());
+
     Cmds.emplace_back(SMPipe->PopulateCmdList().Get());
+
+    EndFrame();
     Cmds.emplace_back(CmdListEndFrame.Get());
 
-    CmdQueue->ExecuteCommandLists(Cmds.size(), Cmds.data());
+    CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 
     // Render to screen
     HR = SwapChain->Present(1, 0);
