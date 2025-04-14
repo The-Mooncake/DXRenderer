@@ -7,6 +7,7 @@
 #include "MainWindow.h"
 #include "USDScene.h"
 
+
 // Force Nvidia GPU - e.g in laptop cases.
 extern "C" { __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001; }
 

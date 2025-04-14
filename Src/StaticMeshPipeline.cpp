@@ -32,14 +32,14 @@ StaticMeshPipeline::StaticMeshPipeline(Renderer* InRenderer)
 ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
 {
     HRESULT HR;
-    
+
     HR = CmdList->Reset(R->CmdAllocator.Get(), MeshPSO.Get());
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to reset the StaticMeshPipeline command list!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
-    CmdList->SetName(L"CmdList-StaticMeshPipeline");
+    CmdList->BeginEvent(1, "SM-Pipeline", sizeof("SM-Pipeline"));
     
     CmdList->SetGraphicsRootSignature(R->RootSig.Get());
     CmdList->RSSetViewports(1, &R->Viewport);
@@ -51,12 +51,15 @@ ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
     CmdList->RSSetScissorRects(1, &ScissorRect);
     CmdList->SetPipelineState(MeshPSO.Get());
 
+    // Set the RT for the Output merger for this PSO.
+    R->SetBackBufferOM(CmdList);
+    
     // Upload const buffers
     ComPtr<ID3D12DescriptorHeap> DescriptorHeaps[] = {ConstantBufferHeap};
     CmdList->SetDescriptorHeaps(_countof(DescriptorHeaps), DescriptorHeaps->GetAddressOf());  
     D3D12_GPU_DESCRIPTOR_HANDLE CbHandle(ConstantBufferHeap->GetGPUDescriptorHandleForHeapStart());
     CmdList->SetGraphicsRootDescriptorTable(0, CbHandle);
-
+    
     // Mesh rendering
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     CmdList->IASetVertexBuffers(0, 1, &VertexBufferView);
@@ -65,6 +68,7 @@ ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
     CmdList->DrawIndexedInstanced(3, 1, 0 ,0, 0);
     
     // Finalise command list and queues.
+    CmdList->EndEvent();
     CmdList->Close();
     if (FAILED(HR))
     {

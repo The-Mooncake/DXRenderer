@@ -303,6 +303,7 @@ void Renderer::BeginFrame()
         PostQuitMessage(1);
     }
     CmdListBeginFrame->SetName(L"CmdList-BeginFrame");
+    CmdListBeginFrame->BeginEvent(1, "BeginFrame", sizeof("BeginFrame"));
     
     // Indicate which back buffer to use
     D3D12_RESOURCE_BARRIER RtBarrier;
@@ -320,7 +321,8 @@ void Renderer::BeginFrame()
     // Clear render targets (and depth stencil if we have it).
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     CmdListBeginFrame->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
-    
+
+    CmdListBeginFrame->EndEvent();
     HR = CmdListBeginFrame->Close();
     if (FAILED(HR))
     {
@@ -340,18 +342,14 @@ void Renderer::EndFrame()
     HRESULT HR;
     
     HR = CmdListEndFrame->Reset(CmdAllocator.Get(), nullptr);
+    CmdListEndFrame->BeginEvent(1, "EndFrame", sizeof("EndFrame"));
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"EndFrame: Failed to reset 'CmdListEndFrame'!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
     CmdListEndFrame->SetName(L"CmdList-EndFrame");
-    
-    // Set the RT for the Output merger...?
-    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
-    CmdListEndFrame->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
-    
+
     // Indicate that the back buffer will be used to present.
     D3D12_RESOURCE_BARRIER PresentBarrier;
     PresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -362,6 +360,7 @@ void Renderer::EndFrame()
     PresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     CmdListEndFrame->ResourceBarrier(1, &PresentBarrier);
 
+    CmdListEndFrame->EndEvent();
     HR = CmdListEndFrame->Close();
     if (FAILED(HR))
     {
@@ -387,6 +386,13 @@ void Renderer::WaitForPreviousFrame()
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }
 
+void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList> InCmdList) const 
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
+    InCmdList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
+}
+
 void Renderer::Update()
 {
     // Using Left handed coordinate systems, but matrices need to be transposed for hlsl.
@@ -409,20 +415,21 @@ void Renderer::Render()
 {
     HRESULT HR;
 
+    // Create command Lists
     BeginFrame();
     MidFrame();
     EndFrame();
-    
-    // Populate pipeline specific command lists.
-    // E.g: 1 for backbuffer, 1 for mesh rendering.
-    ID3D12CommandList* const CmdLists[3] = {
-        CmdListBeginFrame.Get(),
-        SMPipe->PopulateCmdList().Get(),
-        CmdListEndFrame.Get()
-    };
 
-    CmdQueue->ExecuteCommandLists(_countof(CmdLists), CmdLists);
+    // Build and execute the command list.
+    Cmds.clear();
     
+    Cmds.emplace_back(CmdListBeginFrame.Get());
+    Cmds.emplace_back(SMPipe->PopulateCmdList().Get());
+    Cmds.emplace_back(CmdListEndFrame.Get());
+
+    CmdQueue->ExecuteCommandLists(Cmds.size(), Cmds.data());
+
+    // Render to screen
     HR = SwapChain->Present(1, 0);
     if (FAILED(HR))
     {

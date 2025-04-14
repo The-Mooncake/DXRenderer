@@ -149,6 +149,10 @@ find_package(directx12-agility CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_insta
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 target_link_libraries(${PROJECT_NAME} PRIVATE d3d12.lib dxgi.lib d3dcompiler.lib dxguid.lib) # Probably not using vcpkg libs.
 
+# PixMarkers
+find_package(winpixevent CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE Microsoft::WinPixEventRuntime)
+
 # TBB
 find_package(TBB CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
@@ -202,6 +206,9 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     # Shader(s)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${Shader_Files}" "${BIN_DIR}/Debug"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${Shader_Files}" "${BIN_DIR}/Release"
+
+    # PixMarkers
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/bin/WinPixEventRuntime.dll" "${BIN_DIR}/Debug"
 
     #vcpkg
     # USD - copies pdbs

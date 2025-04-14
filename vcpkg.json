@@ -2,7 +2,8 @@
   "dependencies": [
     "directx12-agility",
     "tbb",
-    "usd"
+    "usd",
+    "winpixevent"
   ],
   "overrides": [
     {

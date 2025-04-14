@@ -40,6 +40,9 @@ public:
     // Timing
     void WaitForPreviousFrame();
 
+    // Utilities
+    void SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList> InCmdList) const;
+
 private:
     // Setup Helpers
     bool SetupDevice();
@@ -88,10 +91,14 @@ public:
     ComPtr<ID3D12RootSignature> RootSig;
     D3D12_VIEWPORT Viewport;
 
+
+    
     // Frame Cmd Lists
     ComPtr<ID3D12GraphicsCommandList> CmdListBeginFrame;
     ComPtr<ID3D12GraphicsCommandList> CmdListMidFrame;
     ComPtr<ID3D12GraphicsCommandList> CmdListEndFrame;
+
+    std::vector<ID3D12CommandList*> Cmds; // The list in order of rendering commands. 
     
     // Frame Buffers
     std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
