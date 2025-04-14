@@ -8,12 +8,16 @@
 #include "MainWindow.h"
 #include "Renderer.h"
 #include "pch.h"
+#include "RenderMesh.h"
+#include "USDScene.h"
 
 
 StaticMeshPipeline::StaticMeshPipeline(Renderer* InRenderer)
 {
     R = InRenderer;
 
+    ProcessScene(); // Load the one and only mesh.
+    
     CompileShaders();
     CreatePSO();
     SetupConstantBuffer();
@@ -65,7 +69,8 @@ ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
     CmdList->IASetVertexBuffers(0, 1, &VertexBufferView);
     CmdList->IASetIndexBuffer(&IndexBufferView);
 
-    CmdList->DrawIndexedInstanced(3, 1, 0 ,0, 0);
+    const UINT NumIndices = static_cast<UINT>(CurrentMesh->Indices.size()); 
+    CmdList->DrawIndexedInstanced(NumIndices, 1, 0 ,0, 0);
     
     // Finalise command list and queues.
     CmdList->EndEvent();
@@ -77,6 +82,17 @@ ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
     }
 
     return CmdList;
+}
+
+inline void StaticMeshPipeline::ProcessScene()
+{
+    if (G_MainWindow->Scene->GetMeshes().size() <= 0)
+    {
+        return;
+    }
+    
+    std::shared_ptr<RenderMesh> RMesh = G_MainWindow->Scene->GetMeshes()[0]; // Only one for now.
+    CurrentMesh = RMesh->GetMeshData();
 }
 
 void StaticMeshPipeline::Update(const CB_WVP& WVP)
@@ -278,7 +294,7 @@ bool StaticMeshPipeline::SetupVertexBuffer()
     bool bResult = false;
 
     // Load the meshes!
-    const UINT VertexBufferSize = sizeof(R->VertexBufferData);
+    const UINT VertexBufferSize = sizeof(Vertex) * static_cast<UINT>(CurrentMesh->Vertices.size());
 
     D3D12_HEAP_PROPERTIES HeapProps;
     HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -324,7 +340,7 @@ bool StaticMeshPipeline::SetupVertexBuffer()
         PostQuitMessage(1);
         return bResult;
     }
-    memcpy(VertexDataBegin, R->VertexBufferData, sizeof(R->VertexBufferData));
+    memcpy(VertexDataBegin, CurrentMesh->Vertices.data(), VertexBufferSize);
     VertexBuffer->Unmap(0, nullptr);
 
     // Initialize the vertex buffer view.
@@ -349,7 +365,7 @@ bool StaticMeshPipeline::SetupIndexBuffer()
     bool bResult = false;
     
     // Declare Handles
-    const UINT IndexBufferSize = sizeof(R->TriIndexBufferData);
+    const UINT IndexBufferSize = sizeof(uint32_t) * static_cast<UINT>(CurrentMesh->Indices.size());
 
     D3D12_HEAP_PROPERTIES HeapIndexProps;
     HeapIndexProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -396,7 +412,7 @@ bool StaticMeshPipeline::SetupIndexBuffer()
         PostQuitMessage(1);
         return bResult;
     }
-    memcpy(pVertexDataBegin, R->TriIndexBufferData, sizeof(R->TriIndexBufferData));
+    memcpy(pVertexDataBegin, CurrentMesh->Indices.data(), IndexBufferSize);
     IndexBuffer->Unmap(0, nullptr);
 
     IndexBuffer->SetName(L"Mesh Index Buffer");

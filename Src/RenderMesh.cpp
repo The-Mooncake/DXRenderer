@@ -20,6 +20,29 @@ namespace
     char const* AttrUVs = "primvars:st";
 }
 
+void MeshData::ProcessVertices(bool bIsYUp)
+{
+    const size_t NumVerts = Positions.size();
+    Vertices.reserve(NumVerts);
+
+    for (size_t Idx = 0; Idx < NumVerts; Idx++ )
+    {
+        Vertex Vtx;
+        if (bIsYUp)
+        {
+            Vtx.Position = Positions[Idx];
+        }
+        else
+        {
+            // This is wrong, need the correct solution for swizzling input vectors.
+            //Vtx.Position = DirectX::XMFLOAT3(Positions[Idx].y, -Positions[Idx].x, Positions[Idx].z); // Works for tri.
+            Vtx.Position = DirectX::XMFLOAT3(Positions[Idx].x, Positions[Idx].z, Positions[Idx].y);  // Works for quad.
+        }
+        Vtx.Colour = Colours[Idx];
+        Vertices.emplace_back(Vtx);
+    }
+}
+
 RenderMesh::RenderMesh(const USDScene* InReader)
 {
     if (InReader == nullptr)
@@ -41,6 +64,32 @@ bool RenderMesh::ValidatePrim(pxr::UsdPrim& Mesh)
     return bHasIndices && bHasPoints && bHasNormals && bHasUVs;
 }
 
+void RenderMesh::GenerateVertexColour(std::shared_ptr<MeshData> MeshData)
+{
+    const size_t NumVerts = MeshData->Positions.size();
+    MeshData->Colours.reserve(NumVerts);
+    
+    for (size_t Idx = 0; Idx < NumVerts; Idx++)
+    {
+        uint8_t Remainder = Idx % 3; 
+        switch (Remainder)
+        {
+        case 0:
+            MeshData->Colours.push_back(DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f));
+            break;
+        case 1:
+            MeshData->Colours.push_back(DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f));
+            break;
+        case 2:
+            MeshData->Colours.push_back(DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f));
+            break;
+        default:
+            MeshData->Colours.push_back(DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f));
+            break;
+        }
+    }
+}
+
 void RenderMesh::Load(UsdPrim& Mesh)
 {
     if (!ValidatePrim(Mesh))
@@ -55,6 +104,12 @@ void RenderMesh::Load(UsdPrim& Mesh)
     CopyDXFloat3Data<GfVec3f>(Mesh, TfToken(AttrPositions), SharedMeshData->Positions);
     CopyDXFloat3Data<GfVec3f>(Mesh, TfToken(AttrNormals), SharedMeshData->Normals);
     CopyDXFloat2Data<GfVec2f>(Mesh, TfToken(AttrUVs), SharedMeshData->UVs);
+
+    // Generate colour
+    GenerateVertexColour(SharedMeshData);
+
+    // Process data to render data.
+    SharedMeshData->ProcessVertices(Reader->IsYUp());
 }
 
 template <typename SrcT, typename DestT>

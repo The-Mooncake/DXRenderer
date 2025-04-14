@@ -6,6 +6,7 @@
 
 #include <d3dcommon.h>
 #include <d3d12.h>
+#include <memory>
 
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
@@ -20,6 +21,8 @@ public:
     void Update(const CB_WVP& WVP);
 
 private:
+    void ProcessScene();
+
     bool CompileShaders();
     bool CreatePSO();
     bool SetupConstantBuffer();
@@ -47,5 +50,6 @@ public:
 
 private:
     class Renderer* R; 
-    
+
+    std::shared_ptr<struct MeshData> CurrentMesh;
 };

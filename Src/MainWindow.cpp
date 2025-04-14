@@ -123,11 +123,14 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 
 int MainWindow::Run()
 {
+    // Load the scene.
+    //Scene->LoadExampleTri(); // Works 
+    Scene->LoadExampleQuadTri(); // Works
+    //Scene->LoadExampleQuad(); // Fails, as we don't handle shared verts...
+    
     RendererDX->Setup();
 
-    Scene->LoadExampleCube();
-    
-    // Show, its hidden by default.
+    // Show, the window hidden by default.
     ShowWindow(hWnd, SW_SHOW);
     
     // Message loop

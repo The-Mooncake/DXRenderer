@@ -1,0 +1,55 @@
+#usda 1.0
+(
+    defaultPrim = "root"
+    doc = "Blender v4.2.3 LTS"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "root" (
+    customData = {
+        dictionary Blender = {
+            bool generated = 1
+        }
+    }
+)
+{
+    def Xform "Triangle"
+    {
+        custom string userProperties:blender:object_name = "Triangle"
+        float3 xformOp:rotateXYZ = (-0, 89.99999, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+
+        def Mesh "Plane" (
+            active = true
+        )
+        {
+            float3[] extent = [(-0.5, -0.5, 0), (0.5, 0.5, 0.000119546305)]
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            normal3f[] normals = [(0.0001195463, 0, 1), (0.0001195463, 0, 1), (0.0001195463, 0, 1)] (
+                interpolation = "faceVarying"
+            )
+            point3f[] points = [(-0.5, 0.0017854273, 0.000119546305), (0.5, -0.5, 0), (0.5, 0.5, 0)]
+            bool[] primvars:sharp_face = [1] (
+                interpolation = "uniform"
+            )
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1)] (
+                interpolation = "faceVarying"
+            )
+            uniform token subdivisionScheme = "none"
+            custom string userProperties:blender:data_name = "Plane"
+        }
+    }
+
+    def DomeLight "env_light"
+    {
+        float inputs:intensity = 1
+        asset inputs:texture:file = @.\textures\color_121212.hdr@
+        float3 xformOp:rotateXYZ = (90, 1.2722219e-14, 90)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+}
+

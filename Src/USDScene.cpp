@@ -10,6 +10,7 @@
 #include "pxr/usd/usdGeom/sphere.h"
 #include "pxr/usd/sdf/path.h"
 #include "pxr/usd/usd/primRange.h"
+#include "pxr/usd/usdGeom/xformCommonAPI.h"
 
 // Useful USD References: https://github.com/LittleCoinCoin/OpenUSD-setup-vcpkg-template/blob/main/OpenUSD-setup-vcpkg/src/main.cpp
 
@@ -18,8 +19,12 @@ using namespace pxr;
 void USDScene::LoadScene(const std::string& Path)
 {
     Stage = UsdStage::Open(Path);
+
+    TfToken UpAxis;  
+    Stage->GetMetadata(UsdGeomTokens->upAxis, &UpAxis);
+    bIsYUp = (UpAxis == UsdGeomTokens->y);
     
-    UsdPrimRange Prims = Stage->TraverseAll();
+    UsdPrimRange Prims = Stage->TraverseAll();  
 
     for (UsdPrim Prim : Prims)
     {
