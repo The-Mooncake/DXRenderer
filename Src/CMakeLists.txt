@@ -9,6 +9,7 @@ set(Header_Files
     "Renderer.h"
     "USDScene.h"
     "RenderMesh.h"
+    "StaticMeshPipeline.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -18,6 +19,7 @@ set(Source_Files
     "MainWindow.cpp"
     "USDScene.cpp"
     "RenderMesh.cpp"
+    "StaticMeshPipeline.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 

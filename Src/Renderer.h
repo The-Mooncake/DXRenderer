@@ -7,22 +7,17 @@
 #include <vector>
 
 #include "pch.h"
+#include "StaticMeshPipeline.h"
 
 // DX
 #include <d3dcommon.h>
 #include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <memory>
+
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
-
-// ConstBuffer
-struct CB_WVP
-{
-    DirectX::XMMATRIX ModelMatrix = DirectX::XMMatrixIdentity(); // Model to World
-    DirectX::XMMATRIX ViewMatrix = DirectX::XMMatrixIdentity(); // World to View / Camera 
-    DirectX::XMMATRIX ProjectionMatrix = DirectX::XMMatrixIdentity(); // View to 2D Projection
-};
 
 struct Vertex
 {
@@ -33,29 +28,34 @@ struct Vertex
 class Renderer
 {
 public:
-    Renderer();
     ~Renderer();
     
     // Rendering Setup
-    bool SetupRenderer();
-    
-    bool SetupDevice();
-    bool SetupSwapChain();
-    bool SetupMeshPipeline();
-    
+    bool Setup();
+
     // Main render loop.
     void Update();
     void Render();
 
-    // Setup Helpers
-    bool SetupRootSignature();
-    bool CreateMeshPipeline();
-    bool MeshConstantBuffer();
-    bool MeshVertexBuffer();
-    bool MeshIndexBuffer();
-
     // Timing
     void WaitForPreviousFrame();
+
+private:
+    // Setup Helpers
+    bool SetupDevice();
+    bool SetupSwapChain();
+    bool SetupMeshRootSignature();
+
+    // Frame Stages
+    // From https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Multithreading/src/D3D12Multithreading.cpp
+    void BeginFrame();
+    void MidFrame();
+    void EndFrame();
+
+
+public:
+    // Pipelines
+    std::unique_ptr<class StaticMeshPipeline> SMPipe;
     
     // Window and Viewport
     UINT Width = 800;
@@ -86,12 +86,12 @@ public:
     ComPtr<ID3D12GraphicsCommandList> CmdList;
     ComPtr<IDXGISwapChain4> SwapChain;
     ComPtr<ID3D12RootSignature> RootSig;
-    ComPtr<ID3D12PipelineState> PipelineState;
     D3D12_VIEWPORT Viewport;
 
-    // Shaders and object resources.
-    ComPtr<ID3DBlob> VS;
-    ComPtr<ID3DBlob> PS;
+    // Frame Cmd Lists
+    ComPtr<ID3D12GraphicsCommandList> CmdListBeginFrame;
+    ComPtr<ID3D12GraphicsCommandList> CmdListMidFrame;
+    ComPtr<ID3D12GraphicsCommandList> CmdListEndFrame;
     
     // Frame Buffers
     std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
@@ -106,13 +106,6 @@ public:
     UINT64 FenceValue = 0;
     HANDLE FenceEvent;
 
-    // Mesh Buffers
-    D3D12_INDEX_BUFFER_VIEW IndexBufferView;
-    D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
-    ComPtr<ID3D12Resource> VertexBuffer;
-    ComPtr<ID3D12Resource> IndexBuffer;    
-    ComPtr<ID3D12Resource> ConstantBuffer;
-    ComPtr<ID3D12DescriptorHeap> ConstantBufferHeap;
 
     // World Constants
     CB_WVP WVP; // World View Projection buffer.

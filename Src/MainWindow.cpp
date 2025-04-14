@@ -123,7 +123,7 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 
 int MainWindow::Run()
 {
-    RendererDX->SetupRenderer();
+    RendererDX->Setup();
     
     // Show, its hidden by default.
     ShowWindow(hWnd, SW_SHOW);
