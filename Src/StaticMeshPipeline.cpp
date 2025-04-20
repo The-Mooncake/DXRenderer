@@ -154,7 +154,7 @@ bool StaticMeshPipeline::CreatePSO()
     
     D3D12_RASTERIZER_DESC Raster_Desc{};
     Raster_Desc.FillMode = D3D12_FILL_MODE_SOLID;
-    Raster_Desc.CullMode = D3D12_CULL_MODE_NONE;
+    Raster_Desc.CullMode = D3D12_CULL_MODE_FRONT; // Need to implement depth buffer for no culling
     Raster_Desc.FrontCounterClockwise = false;
     Raster_Desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     Raster_Desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;

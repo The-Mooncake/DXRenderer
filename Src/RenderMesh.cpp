@@ -18,6 +18,19 @@ namespace
     char const* AttrPositions = "points";
     char const* AttrNormals = "normals";
     char const* AttrUVs = "primvars:st";
+    char const* AttrFaceVtxCounts = "faceVertexCounts";
+}
+
+DirectX::XMFLOAT3 MeshData::PositionToRenderSpace(bool bIsYUp, size_t Idx)
+{
+    if (bIsYUp)
+    {
+        return Positions[Idx];
+    }
+    else
+    {
+        return DirectX::XMFLOAT3(Positions[Idx].x, Positions[Idx].z, Positions[Idx].y);
+    }
 }
 
 void MeshData::ProcessVertices(bool bIsYUp)
@@ -28,16 +41,7 @@ void MeshData::ProcessVertices(bool bIsYUp)
     for (size_t Idx = 0; Idx < NumVerts; Idx++ )
     {
         Vertex Vtx;
-        if (bIsYUp)
-        {
-            Vtx.Position = Positions[Idx];
-        }
-        else
-        {
-            // This is wrong, need the correct solution for swizzling input vectors.
-            //Vtx.Position = DirectX::XMFLOAT3(Positions[Idx].y, -Positions[Idx].x, Positions[Idx].z); // Works for tri.
-            Vtx.Position = DirectX::XMFLOAT3(Positions[Idx].x, Positions[Idx].z, Positions[Idx].y);  // Works for quad.
-        }
+        Vtx.Position = PositionToRenderSpace(bIsYUp, Idx);
         Vtx.Colour = Colours[Idx];
         Vertices.emplace_back(Vtx);
     }
@@ -54,7 +58,7 @@ RenderMesh::RenderMesh(const USDScene* InReader)
     Reader = InReader;
 }
 
-bool RenderMesh::ValidatePrim(pxr::UsdPrim& Mesh)
+bool RenderMesh::ValidatePrim(UsdPrim& Mesh)
 {
     bool bHasIndices = Mesh.HasAttribute(TfToken(AttrIndices));
     bool bHasPoints = Mesh.HasAttribute(TfToken(AttrPositions));
@@ -90,33 +94,37 @@ void RenderMesh::GenerateVertexColour(std::shared_ptr<MeshData> MeshData)
     }
 }
 
-void RenderMesh::Load(UsdPrim& Mesh)
+void RenderMesh::Load(UsdPrim& InMesh)
 {
-    if (!ValidatePrim(Mesh))
+    if (!ValidatePrim(InMesh))
     {
-        std::cout << "USDReader::LoadMesh: Mesh at '" << Mesh.GetDisplayName() << "' does not have valid data!" << "\n";
+        std::cout << "USDReader::LoadMesh: Mesh at '" << InMesh.GetDisplayName() << "' does not have valid data!" << "\n";
         return; 
     }
 
+    Mesh = &InMesh;
     SharedMeshData = std::make_shared<MeshData>();
     
-    CopyData<int, uint32_t>(Mesh, TfToken(AttrIndices), SharedMeshData->Indices);
-    CopyDXFloat3Data<GfVec3f>(Mesh, TfToken(AttrPositions), SharedMeshData->Positions);
-    CopyDXFloat3Data<GfVec3f>(Mesh, TfToken(AttrNormals), SharedMeshData->Normals);
-    CopyDXFloat2Data<GfVec2f>(Mesh, TfToken(AttrUVs), SharedMeshData->UVs);
+    CopyData<int, uint32_t>(TfToken(AttrIndices), SharedMeshData->Indices);
+    CopyDXFloat3Data<GfVec3f>(TfToken(AttrPositions), SharedMeshData->Positions);
+    CopyDXFloat3Data<GfVec3f>(TfToken(AttrNormals), SharedMeshData->Normals);
+    CopyDXFloat2Data<GfVec2f>(TfToken(AttrUVs), SharedMeshData->UVs);
 
     // Generate colour
     GenerateVertexColour(SharedMeshData);
+
+    // Triangulate Mesh
+    Triangulate(SharedMeshData);
 
     // Process data to render data.
     SharedMeshData->ProcessVertices(Reader->IsYUp());
 }
 
 template <typename SrcT, typename DestT>
-bool RenderMesh::CopyData(UsdPrim& Mesh, const TfToken& AttrName, std::vector<DestT>& DestArray)
+bool RenderMesh::CopyData(const TfToken& AttrName, std::vector<DestT>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
+    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -129,10 +137,10 @@ bool RenderMesh::CopyData(UsdPrim& Mesh, const TfToken& AttrName, std::vector<De
 }
 
 template <typename SrcT>
-bool RenderMesh::CopyDXFloat3Data(UsdPrim& Mesh, const TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray)
+bool RenderMesh::CopyDXFloat3Data(const TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
+    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -150,11 +158,11 @@ bool RenderMesh::CopyDXFloat3Data(UsdPrim& Mesh, const TfToken& AttrName, std::v
 }
 
 template <typename SrcT>
-bool RenderMesh::CopyDXFloat2Data(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrName,
+bool RenderMesh::CopyDXFloat2Data(const pxr::TfToken& AttrName,
     std::vector<DirectX::XMFLOAT2>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
+    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -168,4 +176,73 @@ bool RenderMesh::CopyDXFloat2Data(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrNa
     }
 
     return DestArray.size() == UsdArray.size();
+}
+
+// Simple (Silly) triangulation algorithm that sets the indices for the mesh.
+void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
+{
+    VtArray<int> FaceVtxCounts;
+    UsdAttribute ArrayAttr = Mesh->GetAttribute(TfToken(AttrFaceVtxCounts));
+    ArrayAttr.Get<VtArray<int>>(&FaceVtxCounts);
+    
+    bool bIsTriangulated = true;
+    size_t TriCount = 0;
+    for (size_t i = 0; i < FaceVtxCounts.size(); ++i)
+    {
+        const int FaceCount = FaceVtxCounts[i];
+        switch (FaceCount)
+        {
+        case 0:
+        case 1:
+        case 2:
+            break;
+        case 3:
+            TriCount++;
+            break;
+        default:
+            const int Remainder = FaceCount % 3;
+            const int TriMultiples = FaceCount / 3;
+            TriCount += TriMultiples + Remainder;
+            bIsTriangulated = false;
+            break;
+        }
+    }
+    if (bIsTriangulated) return; // Early out.
+    
+    const size_t TriVtxCount = TriCount * 3;
+    std::vector<uint32_t> TempIndices;
+    TempIndices.reserve(TriVtxCount);
+    
+    size_t SrcOffset = 0;
+    size_t TempOffset = 0;
+    for (size_t Idx = 0; Idx < FaceVtxCounts.size(); ++Idx)
+    {
+        const uint32_t VtxCount = FaceVtxCounts[Idx];
+
+        switch (VtxCount)
+        {
+        case 3:
+            SrcOffset += 3;
+            TempOffset += 3;
+            break;
+        case 4:
+            {
+                // [0, 1, 3, 2] Quad
+                // [0, 1, 3, 2, 0, 3] 2 Tris: (0, 1, 3) & (2, 0, 3)
+                TempIndices.resize(TempIndices.size() + 6);
+                memcpy(TempIndices.data() + TempOffset, MeshData->Indices.data() + SrcOffset, 4 * sizeof(uint32_t));
+                TempIndices[TempOffset + 4] = MeshData->Indices[SrcOffset];
+                TempIndices[TempOffset + 5] = MeshData->Indices[SrcOffset + 2];
+
+                SrcOffset += 4;
+                TempOffset += 6;
+                break;
+            }
+        default:
+            std::cout << "Mesh triangulation not supported with face count: " << VtxCount << std::endl;
+            return;
+        }
+    }
+    
+    MeshData->Indices = TempIndices; // Probably better way of assigning.
 }

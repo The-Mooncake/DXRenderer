@@ -17,7 +17,8 @@ public:
     std::vector<DirectX::XMFLOAT3> Normals;
     std::vector<DirectX::XMFLOAT2> UVs;
     std::vector<DirectX::XMFLOAT4> Colours;
-    
+
+    DirectX::XMFLOAT3 PositionToRenderSpace(bool bIsYUp, size_t Idx);
     void ProcessVertices(bool bIsYUp);
 };
 
@@ -25,7 +26,7 @@ class RenderMesh
 {
 public:
     RenderMesh(const USDScene* InReader);
-    void Load(class pxr::UsdPrim& Mesh);
+    void Load(class pxr::UsdPrim& InMesh);
 
     std::shared_ptr<MeshData> GetMeshData() { return SharedMeshData; }
 
@@ -33,20 +34,28 @@ private:
     bool ValidatePrim(pxr::UsdPrim& Mesh);
     
     template<typename SrcT, typename DestT>
-    bool CopyData(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrName, std::vector<DestT>& DestArray);
+    bool CopyData(const pxr::TfToken& AttrName, std::vector<DestT>& DestArray);
 
     // Dx data accessors are different to usd types, custom implementations for copying data required.
     template<typename SrcT>
-    bool CopyDXFloat3Data(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray);
+    bool CopyDXFloat3Data(const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray);
 
     template<typename SrcT>
-    bool CopyDXFloat2Data(pxr::UsdPrim& Mesh, const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT2>& DestArray);
+    bool CopyDXFloat2Data(const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT2>& DestArray);
 
+    // Helpers
     void GenerateVertexColour(std::shared_ptr<MeshData> MeshData);
 
+    void Triangulate(std::shared_ptr<MeshData> MeshData);
+    
 private:
-    const USDScene* Reader;
+    const USDScene* Reader = nullptr;
+    pxr::UsdPrim* Mesh = nullptr;
     std::shared_ptr<MeshData> SharedMeshData;
 };
+
+
+
+
 
 

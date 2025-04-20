@@ -28,8 +28,6 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
 MainWindow::~MainWindow()
 {
-    Scene.release();
-    RendererDX.release();
     G_MainWindow = nullptr;
 }
 
@@ -124,9 +122,7 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 int MainWindow::Run()
 {
     // Load the scene.
-    //Scene->LoadExampleTri(); // Works 
-    Scene->LoadExampleQuadTri(); // Works
-    //Scene->LoadExampleQuad(); // Fails, as we don't handle shared verts...
+    Scene->LoadExampleCube(); 
     
     RendererDX->Setup();
 
