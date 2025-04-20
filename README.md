@@ -1,7 +1,7 @@
 A simple DirectX12 renderer build in Windows. 
 The objective of this is to get used to more modern graphics pipelines and to explore writing a renderer from scratch. This helps me understand the graphics programmer pipeline to a deeper level. 
 
-I used many different resources available online, these are referenced in 'Renderer.cpp'.
+I used many different resources available online, these are referenced in 'Renderer.cpp'. Individual releases can be found in the Tags section.
 
 Latest release is "v2" which adds USD geometry support and renders a rotating cube.
 
