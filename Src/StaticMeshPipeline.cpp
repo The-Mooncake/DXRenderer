@@ -154,7 +154,7 @@ bool StaticMeshPipeline::CreatePSO()
     
     D3D12_RASTERIZER_DESC Raster_Desc{};
     Raster_Desc.FillMode = D3D12_FILL_MODE_SOLID;
-    Raster_Desc.CullMode = D3D12_CULL_MODE_FRONT; // Need to implement depth buffer for no culling
+    Raster_Desc.CullMode = D3D12_CULL_MODE_NONE; //D3D12_CULL_MODE_FRONT; // Need to implement depth buffer for no culling
     Raster_Desc.FrontCounterClockwise = false;
     Raster_Desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     Raster_Desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
@@ -177,7 +177,23 @@ bool StaticMeshPipeline::CreatePSO()
         D3D12_LOGIC_OP_NOOP,
         D3D12_COLOR_WRITE_ENABLE_ALL,
     };
-    Blend_Desc.RenderTarget[0] = DefaultRenderTargetBlendDesc;
+    Blend_Desc.RenderTarget[0] = DefaultRenderTargetBlendDesc;  
+
+    D3D12_DEPTH_STENCILOP_DESC DefaultStencilOp;
+    DefaultStencilOp.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+    DefaultStencilOp.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+    DefaultStencilOp.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+    DefaultStencilOp.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    
+    D3D12_DEPTH_STENCIL_DESC DepthStateDesc;
+    DepthStateDesc.DepthEnable = TRUE;
+    DepthStateDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    DepthStateDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+    DepthStateDesc.StencilEnable = false;
+    DepthStateDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+    DepthStateDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+    DepthStateDesc.FrontFace = DefaultStencilOp;
+    DepthStateDesc.BackFace = DefaultStencilOp;
     
     D3D12_GRAPHICS_PIPELINE_STATE_DESC PipeStateDesc = {};
     PipeStateDesc.InputLayout = { InElementDesc, _countof(InElementDesc) }; // Array of shader intrinsics
@@ -186,8 +202,8 @@ bool StaticMeshPipeline::CreatePSO()
     PipeStateDesc.PS = {reinterpret_cast<UINT8*>(PS->GetBufferPointer()), PS->GetBufferSize()};
     PipeStateDesc.RasterizerState = Raster_Desc;
     PipeStateDesc.BlendState = Blend_Desc;
-    PipeStateDesc.DepthStencilState.DepthEnable = FALSE;
-    PipeStateDesc.DepthStencilState.StencilEnable = FALSE;
+    PipeStateDesc.DepthStencilState = DepthStateDesc;
+    PipeStateDesc.DSVFormat = R->DepthSampleFormat;
     PipeStateDesc.SampleMask = UINT_MAX;
     PipeStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     PipeStateDesc.NumRenderTargets = 1;

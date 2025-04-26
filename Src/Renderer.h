@@ -41,7 +41,7 @@ public:
     void WaitForPreviousFrame();
 
     // Utilities
-    void SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList> InCmdList) const;
+    void SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) const;
 
 private:
     // Setup Helpers
@@ -63,17 +63,13 @@ public:
     // Window and Viewport
     UINT Width = 800;
     UINT Height = 600;
-    float NearPlane = 0.1f;
+    float NearPlane = 0.01f; // Can't be zero for depth buffer.
     float FarPlane = 100.0f;
 
     float FieldOfView = 45.0;
     float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
-    
-    // Tri Data...
-    uint32_t TriIndexBufferData[3] = {0, 1, 2};
-    Vertex VertexBufferData[3] = {{{0.0f, 0.25f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-                                  {{0.25f, -0.25f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-                                  {{-0.25f, -0.25f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}};
+
+    float MaxDepth = 1.0f;
     
     // Render State
     bool bDXReady = false;
@@ -91,8 +87,6 @@ public:
     ComPtr<ID3D12RootSignature> RootSig;
     D3D12_VIEWPORT Viewport;
 
-
-    
     // Frame Cmd Lists
     ComPtr<ID3D12GraphicsCommandList> CmdListBeginFrame;
     ComPtr<ID3D12GraphicsCommandList> CmdListMidFrame;
@@ -107,6 +101,10 @@ public:
     ComPtr<ID3D12DescriptorHeap> FrameBufferHeap;
     UINT RtvHeapOffsetSize = 0;
     UINT FrameBufferCount = 2; // Currently only two buffers
+    // And Depth/Stencil buffer
+    ComPtr<ID3D12Resource> DepthBuffer; 
+    ComPtr<ID3D12DescriptorHeap> DepthBufferHeap;
+    DXGI_FORMAT DepthSampleFormat = DXGI_FORMAT_D32_FLOAT_S8X24_UINT; 
 
     // Synchronisation
     ComPtr<ID3D12Fence> Fence;

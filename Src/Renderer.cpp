@@ -2,6 +2,7 @@
 
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
+#include <string>
 
 #include "MainWindow.h"
 #include "StaticMeshPipeline.h"
@@ -118,22 +119,23 @@ bool Renderer::SetupDevice()
         PostQuitMessage(1);
         return bResult;
     }
-
-    // Setup the command lists.
-    HR = Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CmdAllocator.Get(), 0, IID_PPV_ARGS(&CmdList));
-    if (FAILED(HR))
+    
+    // Create as closed.
+    std::string MsgCmdList;
+    HR = Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListBeginFrame));
+    if (FAILED(HR)) { MsgCmdList += "Failed to create command begin frame cmd list!\n"; }
+    HR = HR | Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListMidFrame));
+    if (FAILED(HR)) { MsgCmdList += "Failed to create command mid frame cmd list!\n"; }
+    HR = HR | Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListEndFrame));
+    if (FAILED(HR)) { MsgCmdList += "Failed to create command end frame cmd list!"; }
+    if (MsgCmdList.length() > 0)
     {
-        MessageBoxW(nullptr, L"Failed to create command list!", L"Error", MB_OK);
+        LPCWSTR msg = reinterpret_cast<LPCWSTR>(MsgCmdList.c_str());
+        MessageBoxW(nullptr, msg, L"Error", MB_OK);
         PostQuitMessage(1);
         return bResult;
     }
-    CmdList->Close();
-
-    // Create as closed.
-    HR = Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListBeginFrame));
-    HR = Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListMidFrame));
-    HR = Device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CmdListEndFrame));
-
+    
     // Setup the events.
     HR = Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
     if (FAILED(HR))
@@ -149,8 +151,8 @@ bool Renderer::SetupDevice()
     Viewport.TopLeftY = 0.0f;
     Viewport.Width = static_cast<float>(Width);
     Viewport.Height = static_cast<float>(Height);
-    Viewport.MinDepth = NearPlane;
-    Viewport.MaxDepth = FarPlane;
+    Viewport.MinDepth = 0.0f;
+    Viewport.MaxDepth = MaxDepth;
     
     bResult = true;
     return bResult;
@@ -227,6 +229,70 @@ bool Renderer::SetupSwapChain()
         BufferHandle.ptr += RtvHeapOffsetSize;
     }
 
+    // Create Depth/Stencil Buffer
+    D3D12_DESCRIPTOR_HEAP_DESC DepthHeapDesc = {};
+    DepthHeapDesc.NumDescriptors = 1;
+    DepthHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    DepthHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    HR = Device->CreateDescriptorHeap(&DepthHeapDesc, IID_PPV_ARGS(&DepthBufferHeap));
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to create depth/stencil heap!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return bResult;
+    }
+    DepthBufferHeap->SetName(L"Depth/Stencil Resource Heap");
+
+    // Depth Heap Resource
+    D3D12_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc = {};
+    DepthStencilDesc.Format = DepthSampleFormat;
+    DepthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    DepthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+    DepthStencilDesc.Texture2D.MipSlice = 0;
+
+    D3D12_CLEAR_VALUE DepthOptimizedClearValue = {};
+    DepthOptimizedClearValue.Format = DepthSampleFormat;
+    DepthOptimizedClearValue.DepthStencil.Depth = MaxDepth;
+    DepthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+    D3D12_RESOURCE_DESC DepthResourceDesc = {};
+    DepthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    DepthResourceDesc.Alignment = 0;
+    DepthResourceDesc.Width = Width;
+    DepthResourceDesc.Height = Height;
+    DepthResourceDesc.DepthOrArraySize = 1;
+    DepthResourceDesc.MipLevels = 1;
+    DepthResourceDesc.Format = DepthSampleFormat;
+    DepthResourceDesc.SampleDesc.Count = 1;
+    DepthResourceDesc.SampleDesc.Quality = 0;
+    DepthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    DepthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_HEAP_PROPERTIES DepthHeapProps;
+    DepthHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    DepthHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    DepthHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    DepthHeapProps.CreationNodeMask = 0;
+    DepthHeapProps.VisibleNodeMask = 0;
+
+    HR = Device->CreateCommittedResource(
+    &DepthHeapProps,
+    D3D12_HEAP_FLAG_NONE,
+    &DepthResourceDesc,
+    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+    &DepthOptimizedClearValue,
+    IID_PPV_ARGS(&DepthBuffer)
+    );
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to create depth/stencil committed resource!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return bResult;
+    }
+    DepthBuffer->SetName(L"Depth Buffer Resource");
+
+    Device->CreateDepthStencilView(DepthBuffer.Get(), &DepthStencilDesc, DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    
     bResult = true;
     return bResult;
 }
@@ -317,10 +383,11 @@ void Renderer::BeginFrame()
     D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
     
-    // Clear render targets (and depth stencil if we have it).
+    // Clear render targets and depth|stencil.
     FLOAT ClearColour[4] = { 0.6f, 0.6f, 0.6f, 1.0f }; // Base grey...
     CmdListBeginFrame->ClearRenderTargetView(RtvHandle, ClearColour, 0, nullptr);
-
+    CmdListBeginFrame->ClearDepthStencilView(DepthBufferHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, MaxDepth, 0, 0, nullptr);
+    
     CmdListBeginFrame->EndEvent();
     HR = CmdListBeginFrame->Close();
     if (FAILED(HR))
@@ -385,11 +452,14 @@ void Renderer::WaitForPreviousFrame()
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }
 
-void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList> InCmdList) const 
+void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) const 
 {
     D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize); 
-    InCmdList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
+    RtvHandle.ptr = RtvHandle.ptr + static_cast<SIZE_T>(CurrentBackBuffer * RtvHeapOffsetSize);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE DepthHandle(DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    
+    InCmdList->OMSetRenderTargets(1, &RtvHandle, false, &DepthHandle);
 }
 
 void Renderer::Update()
@@ -400,10 +470,10 @@ void Renderer::Update()
     WVP.ModelMatrix = DirectX::XMMatrixMultiply(Model, Rot);
     WVP.ModelMatrix = DirectX::XMMatrixTranspose(WVP.ModelMatrix);
     
-    WVP.ViewMatrix = DirectX::XMMatrixLookAtLH({0, 0, -2, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
+    WVP.ViewMatrix = DirectX::XMMatrixLookAtRH({0, 0, -2, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
     WVP.ViewMatrix = DirectX::XMMatrixTranspose(WVP.ViewMatrix);
 
-    WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
+    WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
     WVP.ProjectionMatrix = DirectX::XMMatrixTranspose(WVP.ProjectionMatrix);
 
     // Update constant buffer.
