@@ -1,6 +1,8 @@
 #include "USDScene.h"
 
 #include "RenderMesh.h"
+#include <nvtx3/nvtx3.hpp>
+
 
 // USD
 #include <iostream>
@@ -18,6 +20,8 @@ using namespace pxr;
 
 void USDScene::LoadScene(const std::string& Path)
 {
+    nvtx3::scoped_range r{ "Load USD Scene" };
+
     Stage = UsdStage::Open(Path);
 
     TfToken UpAxis;  

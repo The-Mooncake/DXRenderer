@@ -1,19 +1,26 @@
 #include "StaticMeshPipeline.h"
 
+// D3D
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+// DXRenderer
 #include "MainWindow.h"
 #include "Renderer.h"
 #include "pch.h"
 #include "RenderMesh.h"
 #include "USDScene.h"
 
+// NVTX
+#include <nvtx3/nvtx3.hpp>
+
 
 StaticMeshPipeline::StaticMeshPipeline(Renderer* InRenderer)
 {
+    NVTX3_FUNC_RANGE();
+
     R = InRenderer;
 
     ProcessScene(); // Load the one and only mesh.
@@ -35,6 +42,8 @@ StaticMeshPipeline::StaticMeshPipeline(Renderer* InRenderer)
 
 ComPtr<ID3D12GraphicsCommandList> StaticMeshPipeline::PopulateCmdList()
 {
+    nvtx3::scoped_range r("SMPipe-PopulateCmdList");
+
     HRESULT HR;
 
     HR = CmdList->Reset(R->CmdAllocator.Get(), MeshPSO.Get());

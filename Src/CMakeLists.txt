@@ -149,14 +149,12 @@ find_package(directx12-agility CONFIG REQUIRED PATHS "${PROJECT_DIR}/vcpkg_insta
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 target_link_libraries(${PROJECT_NAME} PRIVATE d3d12.lib dxgi.lib d3dcompiler.lib dxguid.lib) # Probably not using vcpkg libs.
 
-# PixMarkers
-find_package(winpixevent CONFIG REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE Microsoft::WinPixEventRuntime)
-
 # TBB
 find_package(TBB CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
 
+# NVTX
+target_link_libraries(${PROJECT_NAME} PRIVATE nvtx3-cpp)
 
 # USD
 #set(pxr_DIR "${CMAKE_SOURCE_DIR}/OpenUSDBuild") # Built USD

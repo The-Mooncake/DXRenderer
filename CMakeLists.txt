@@ -26,11 +26,16 @@ set(CMAKE_CONFIGURATION_TYPES
 )
 
 ################################################################################
-# Global compiler options
+# Get CMake Dependencies
 ################################################################################
 
-# If using prebuilt usd from source.
-#set(PXR_INSTALL_LOCATION "${BIN_DIR}/Debug/")
+include(FetchContent)
+FetchContent_Declare(
+  NVTX
+  GIT_REPOSITORY https://github.com/NVIDIA/NVTX
+  GIT_TAG        v3.1.1-c-cpp
+)
+FetchContent_MakeAvailable(NVTX)
 
 ################################################################################
 # Additional Global Settings(add specific info there)
@@ -45,12 +50,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ################################################################################
 # Sub-projects
 ################################################################################
-
-# # PXR Flags
-# set(OPENVDB_BUILD_PYTHON_MODULE OFF)  
-# set(PXR_ENABLE_PYTHON_SUPPORT OFF)  
-# set(PXR_BUILD_IMAGING OFF) 
-# set(PXR_BUILD_USD_IMAGING OFF)  
 
 add_subdirectory(Src)
 

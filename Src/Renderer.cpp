@@ -7,6 +7,8 @@
 #include "MainWindow.h"
 #include "StaticMeshPipeline.h"
 
+#include <nvtx3/nvtx3.hpp>
+
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 615; } 
@@ -37,6 +39,8 @@ Renderer::~Renderer()
 
 bool Renderer::Setup()
 {
+    nvtx3::scoped_range r{ "Setup Renderer" };
+
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
     if (!G_MainWindow->SetupWindow(Width, Height))  { return false; }
     if (!SetupSwapChain())                          { return false; }
@@ -351,6 +355,8 @@ bool Renderer::SetupMeshRootSignature()
 
 void Renderer::BeginFrame()
 {
+    nvtx3::scoped_range r("BeginFrame");
+
     HRESULT HR;
     // Reset the allocator.
     HR = CmdAllocator->Reset();
@@ -399,12 +405,16 @@ void Renderer::BeginFrame()
 
 void Renderer::MidFrame()
 {
+    nvtx3::scoped_range r("MidFrame");
+
     // Transition shadow map from the shadow pass to the readable scene pass.
     // Not necessary with this current renderer.
 }
 
 void Renderer::EndFrame()
 {
+    nvtx3::scoped_range r("EndFrame");
+
     HRESULT HR;
     
     HR = CmdListEndFrame->Reset(CmdAllocator.Get(), nullptr);
@@ -437,19 +447,20 @@ void Renderer::EndFrame()
 
 void Renderer::WaitForPreviousFrame()
 {
+    nvtx3::scoped_range r{ "WaitForPreviousFrame" };
+
     // Signal and increment the fence value.
     const UINT64 CurrentFence = FenceValue;
     CmdQueue->Signal(Fence.Get(), CurrentFence);
     FenceValue++;
 
     // Wait until the previous frame is finished.
-    if (Fence->GetCompletedValue() < CurrentFence)
+    const UINT64 CompletedValue = Fence->GetCompletedValue();
+    if (CompletedValue < CurrentFence)
     {
         Fence->SetEventOnCompletion(CurrentFence, FenceEvent);
         WaitForSingleObject(FenceEvent, INFINITE);
     }
-
-    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) const 
@@ -464,6 +475,8 @@ void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) con
 
 void Renderer::Update()
 {
+    nvtx3::scoped_range r("Update Tick");
+
     // Using Left handed coordinate systems, but matrices need to be transposed for hlsl.
     XMMATRIX Model = DirectX::XMMatrixIdentity();
     XMMATRIX Rot = DirectX::XMMatrixRotationY(static_cast<float>(G_MainWindow->GetTime()));
@@ -482,6 +495,8 @@ void Renderer::Update()
 
 void Renderer::Render()
 {
+    nvtx3::scoped_range r("Render Tick");
+
     HRESULT HR;
     
     // Build and execute the command list.
@@ -511,5 +526,4 @@ void Renderer::Render()
 
     // Update index.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
-
 }

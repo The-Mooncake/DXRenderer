@@ -16,9 +16,14 @@
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
 
+// NVTX
+#include <nvtx3/nvtx3.hpp>
+
 
 MainWindow::MainWindow(HINSTANCE InHInstance)
 {
+    nvtx3::scoped_range r{ "Init MainWindow" };
+
     G_MainWindow = this;
     hInstance = InHInstance;
 
@@ -33,6 +38,8 @@ MainWindow::~MainWindow()
 
 LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    nvtx3::scoped_range r{ "WinProcedure" };
+
     switch (message)
     {
     case WM_CLOSE:
@@ -44,8 +51,8 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
         break;
         
     case WM_PAINT:
-        G_MainWindow->RendererDX->Render();
         G_MainWindow->RendererDX->Update();
+        G_MainWindow->RendererDX->Render();
 
         break;
 
@@ -122,8 +129,8 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 int MainWindow::Run()
 {
     // Load the scene.
-    Scene->LoadExampleCube(); 
-    
+    Scene->LoadExampleCube();
+
     RendererDX->Setup();
 
     // Show, the window hidden by default.
@@ -136,6 +143,8 @@ int MainWindow::Run()
     
     while (Msg.message != WM_QUIT)
     {
+        nvtx3::scoped_range loop{ "Tick" };
+
         Time += TimeStep;
 
         bool bMsg = (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE) != 0);
