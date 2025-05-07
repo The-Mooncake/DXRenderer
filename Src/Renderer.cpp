@@ -177,7 +177,7 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     SwapChainDesc.SampleDesc.Count = 1;      //multisampling setting
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+    if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
     HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), G_MainWindow->GetHWND(), &SwapChainDesc, nullptr, nullptr, &BaseSwapChain);
@@ -514,8 +514,15 @@ void Renderer::Render()
     CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 
     // Render to screen
-    UINT PresentFlags = DXGI_PRESENT_ALLOW_TEARING;
-    HR = SwapChain->Present(0, PresentFlags); // Don't disable VSync (Add option to).
+    UINT PresentFlags = 0;
+    UINT PresentInterval = 1;
+    if (!VSyncEnabled)
+    {
+        PresentInterval = 0;
+        PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+    }
+    
+    HR = SwapChain->Present(PresentInterval, PresentFlags); 
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to present swap chain!", L"Error", MB_OK);

@@ -59,8 +59,11 @@ private:
 public:
     // Pipelines
     std::unique_ptr<class StaticMeshPipeline> SMPipe;
+
+    // Renderer Properties
+    bool VSyncEnabled = false;
     
-    // Window and Viewport
+    // Window and Viewport Properties
     UINT Width = 800;
     UINT Height = 600;
     float NearPlane = 0.01f; // Can't be zero for depth buffer.
@@ -70,6 +73,7 @@ public:
     float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
 
     float MaxDepth = 1.0f;
+    
     
     // Render State
     bool bDXReady = false;
@@ -110,8 +114,7 @@ public:
     ComPtr<ID3D12Fence> Fence;
     UINT64 FenceValue = 0;
     HANDLE FenceEvent;
-
-
+    
     // World Constants
     CB_WVP WVP; // World View Projection buffer.
 
