@@ -157,7 +157,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
 target_link_libraries(${PROJECT_NAME} PRIVATE nvtx3-cpp)
 
 # USD
-#set(pxr_DIR "${CMAKE_SOURCE_DIR}/OpenUSDBuild") # Built USD
 find_package(pxr CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
 ar
@@ -205,9 +204,6 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${Shader_Files}" "${BIN_DIR}/Debug"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${Shader_Files}" "${BIN_DIR}/Release"
 
-    # PixMarkers
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/bin/WinPixEventRuntime.dll" "${BIN_DIR}/Debug"
-
     #vcpkg
     # USD - copies pdbs
     COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Debug/usd/"
@@ -225,24 +221,5 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Debug/usd/"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_DIR}/vcpkg_installed/x64-windows/lib/usd/plugInfo.json" "${BIN_DIR}/Release/usd/"
 	
-    # built usd - Works
-    #COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Debug/lib/usd/"
-    #COMMAND ${CMAKE_COMMAND} -E make_directory "${BIN_DIR}/Release/lib/usd/"
-
-	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${CMAKE_SOURCE_DIR}/OpenUSDBuild/lib" "${BIN_DIR}/Debug/"
-	#COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different  "${CMAKE_SOURCE_DIR}/OpenUSDBuild/lib" "${BIN_DIR}/Release/"
-	
-
 )
 
-
-# Example from the vcpkg DX12 
-#target_link_libraries(${PROJECT_NAME} PRIVATE Microsoft::DirectX-Headers Microsoft::DirectX-Guids Microsoft::DirectX12-Agility)
-# if(TARGET Microsoft::DirectX12-Agility)
-#     file(MAKE_DIRECTORY "${OUTPUT_DIRECTORY_DEBUG}/D3D12")
-#     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Core,IMPORTED_LOCATION_RELEASE> ${PROJECT_NAME}/D3D12
-#         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Layers,IMPORTED_LOCATION_DEBUG> ${PROJECT_NAME}/D3D12
-#        COMMAND_EXPAND_LISTS
-#     )
-# endif()

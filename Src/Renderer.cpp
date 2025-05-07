@@ -168,18 +168,19 @@ bool Renderer::SetupSwapChain()
     bool bResult = false;
 
     // SwapChain
-    DXGI_SWAP_CHAIN_DESC1 desc;
-    ZeroMemory(&desc, sizeof(DXGI_SWAP_CHAIN_DESC1));
-    desc.Width = Width;
-    desc.Height = Height;
-    desc.BufferCount = FrameBufferCount;
-    desc.Format = FrameBufferFormat;
-    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    desc.SampleDesc.Count = 1;      //multisampling setting
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
+    DXGI_SWAP_CHAIN_DESC1 SwapChainDesc;
+    ZeroMemory(&SwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC1));
+    SwapChainDesc.Width = Width;
+    SwapChainDesc.Height = Height;
+    SwapChainDesc.BufferCount = FrameBufferCount;
+    SwapChainDesc.Format = FrameBufferFormat;
+    SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    SwapChainDesc.SampleDesc.Count = 1;      //multisampling setting
+    SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+    
     ComPtr<IDXGISwapChain1> BaseSwapChain;
-    HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), G_MainWindow->GetHWND(), &desc, nullptr, nullptr, &BaseSwapChain);
+    HR = Factory->CreateSwapChainForHwnd(CmdQueue.Get(), G_MainWindow->GetHWND(), &SwapChainDesc, nullptr, nullptr, &BaseSwapChain);
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to create swap chain!", L"Error", MB_OK);
@@ -190,7 +191,7 @@ bool Renderer::SetupSwapChain()
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 
     Factory->MakeWindowAssociation(G_MainWindow->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
-    SwapChain->ResizeBuffers(2, Width, Height, FrameBufferFormat, 0);
+    SwapChain->ResizeBuffers(FrameBufferCount, Width, Height, FrameBufferFormat, 0);
 
     // RTV Heaps
     D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
@@ -513,14 +514,14 @@ void Renderer::Render()
     CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 
     // Render to screen
-    HR = SwapChain->Present(1, 0);
+    UINT PresentFlags = DXGI_PRESENT_ALLOW_TEARING;
+    HR = SwapChain->Present(0, PresentFlags); // Don't disable VSync (Add option to).
     if (FAILED(HR))
     {
         MessageBoxW(nullptr, L"Failed to present swap chain!", L"Error", MB_OK);
         PostQuitMessage(1);
         return;
     }
-    
     // Not the best practice, however works for this example...
     WaitForPreviousFrame();
 
