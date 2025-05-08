@@ -17,8 +17,8 @@ public:
     std::vector<DirectX::XMFLOAT3> Normals;
     std::vector<DirectX::XMFLOAT2> UVs;
     std::vector<DirectX::XMFLOAT4> Colours;
-
-    DirectX::XMFLOAT3 PositionToRenderSpace(bool bIsYUp, size_t Idx);
+    
+    DirectX::XMFLOAT3 VectorToRenderSpace(bool bIsYUp, size_t Idx, std::vector<DirectX::XMFLOAT3>& Data);
     void ProcessVertices(bool bIsYUp);
 };
 

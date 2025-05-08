@@ -22,6 +22,7 @@ using Microsoft::WRL::ComPtr; // Import only the ComPtr
 struct Vertex
 {
     DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT3 Normals;
     DirectX::XMFLOAT4 Colour;
 };
 
@@ -61,7 +62,7 @@ public:
     std::unique_ptr<class StaticMeshPipeline> SMPipe;
 
     // Renderer Properties
-    bool VSyncEnabled = false;
+    bool VSyncEnabled = true;
     
     // Window and Viewport Properties
     UINT Width = 800;

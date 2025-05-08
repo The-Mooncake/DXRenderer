@@ -21,15 +21,15 @@ namespace
     char const* AttrFaceVtxCounts = "faceVertexCounts";
 }
 
-DirectX::XMFLOAT3 MeshData::PositionToRenderSpace(bool bIsYUp, size_t Idx)
+DirectX::XMFLOAT3 MeshData::VectorToRenderSpace(bool bIsYUp, size_t Idx, std::vector<DirectX::XMFLOAT3>& Data)
 {
     if (bIsYUp)
     {
-        return Positions[Idx];
+        return Data[Idx];
     }
     else
     {
-        return DirectX::XMFLOAT3(Positions[Idx].x, Positions[Idx].z, Positions[Idx].y);
+        return DirectX::XMFLOAT3(Data[Idx].x, Data[Idx].z, Data[Idx].y);
     }
 }
 
@@ -41,7 +41,7 @@ void MeshData::ProcessVertices(bool bIsYUp)
     for (size_t Idx = 0; Idx < NumVerts; Idx++ )
     {
         Vertex Vtx;
-        Vtx.Position = PositionToRenderSpace(bIsYUp, Idx);
+        Vtx.Position = VectorToRenderSpace(bIsYUp, Idx, Positions);
         Vtx.Colour = Colours[Idx];
         Vertices.emplace_back(Vtx);
     }

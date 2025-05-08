@@ -10,14 +10,19 @@ cbuffer CB_WVP : register(b0)
 struct VS_INPUT
 {
     float3 Position : POSITION;
+    float3 Normal : NORMAL;
     float3 Colour : COLOR;
 };
 
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;
+    float3 Normal : NORMAL;
     float3 Colour : COLOR;
 };
+
+static const float3 LightPosition = float3(1.0f, 0.0f, 5.0f);
+static const float LightIntensity = 5.0f;
 
 VS_OUTPUT VSMain(VS_INPUT In)
 {
@@ -26,6 +31,9 @@ VS_OUTPUT VSMain(VS_INPUT In)
     Out.Position = mul(Out.Position, ViewMatrix);
     Out.Position = mul(Out.Position, ProjectionMatrix);
 
+    // Normals to WS
+    Out.Normal = mul(float4(In.Normal, 0.0f), ModelMatrix); 
+    
     Out.Colour = In.Colour;
     
     return Out;
@@ -33,5 +41,25 @@ VS_OUTPUT VSMain(VS_INPUT In)
 
 float4 PSMain(VS_OUTPUT In) : SV_TARGET
 {
-    return float4(In.Colour, 1.0f);
+    float3 OutColour = In.Colour;
+    
+    // Lighting
+    float a = 1.0f;
+    float b = 0.0f;
+
+    // Angle
+    float3 LightDir = In.Normal - LightPosition;
+    float Lambert = dot(normalize(In.Normal), normalize(LightDir));
+
+    // Falloff - not working.
+    // Note cube normals don't seem to be correct, revisit this.
+    float LightDist = length(LightPosition - In.Position);
+    float LightStrength = LightIntensity / LightDist * LightDist; //(LightIntensity + a * LightDist + b * LightDist * LightDist);
+    float Lighting = LightStrength * Lambert;
+
+    // Final Composition
+    OutColour *= Lambert;
+    OutColour = saturate(OutColour);
+    
+    return float4(OutColour, 1.0f);
 }

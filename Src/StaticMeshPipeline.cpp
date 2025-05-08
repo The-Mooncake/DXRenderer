@@ -158,12 +158,13 @@ bool StaticMeshPipeline::CreatePSO()
     D3D12_INPUT_ELEMENT_DESC InElementDesc[] =  // Define the vertex input layout.
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
     
     D3D12_RASTERIZER_DESC Raster_Desc{};
     Raster_Desc.FillMode = D3D12_FILL_MODE_SOLID;
-    Raster_Desc.CullMode = D3D12_CULL_MODE_NONE; //D3D12_CULL_MODE_FRONT; // Need to implement depth buffer for no culling
+    Raster_Desc.CullMode = D3D12_CULL_MODE_BACK; 
     Raster_Desc.FrontCounterClockwise = false;
     Raster_Desc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     Raster_Desc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
