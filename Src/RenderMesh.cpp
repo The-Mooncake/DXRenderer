@@ -14,11 +14,7 @@ using namespace pxr;
 
 namespace 
 {
-    char const* AttrIndices = "faceVertexIndices";;
-    char const* AttrPositions = "points";
-    char const* AttrNormals = "normals";
     char const* AttrUVs = "primvars:st";
-    char const* AttrFaceVtxCounts = "faceVertexCounts";
 }
 
 DirectX::XMFLOAT3 MeshData::VectorToRenderSpace(bool bIsYUp, size_t Idx, std::vector<DirectX::XMFLOAT3>& Data)
@@ -42,6 +38,7 @@ void MeshData::ProcessVertices(bool bIsYUp)
     {
         Vertex Vtx;
         Vtx.Position = VectorToRenderSpace(bIsYUp, Idx, Positions);
+        Vtx.Normals = VectorToRenderSpace(bIsYUp, Idx, Normals);
         Vtx.Colour = Colours[Idx];
         Vertices.emplace_back(Vtx);
     }
@@ -60,12 +57,14 @@ RenderMesh::RenderMesh(const USDScene* InReader)
 
 bool RenderMesh::ValidatePrim(UsdPrim& Mesh)
 {
-    bool bHasIndices = Mesh.HasAttribute(TfToken(AttrIndices));
-    bool bHasPoints = Mesh.HasAttribute(TfToken(AttrPositions));
-    bool bHasNormals = Mesh.HasAttribute(TfToken(AttrNormals));
+    bool bIsPointBased = Mesh.IsA(UsdGeomTokens->PointBased);
+    
+    bool bHasIndices = Mesh.HasAttribute(UsdGeomTokens->faceVertexIndices);
+    bool bHasPoints = Mesh.HasAttribute(UsdGeomTokens->points);
+    bool bHasNormals = Mesh.HasAttribute(UsdGeomTokens->normals);
     bool bHasUVs = Mesh.HasAttribute(TfToken(AttrUVs));
 
-    return bHasIndices && bHasPoints && bHasNormals && bHasUVs;
+    return bIsPointBased && bHasIndices && bHasPoints && bHasNormals && bHasUVs;
 }
 
 void RenderMesh::GenerateVertexColour(std::shared_ptr<MeshData> MeshData)
@@ -103,18 +102,25 @@ void RenderMesh::Load(UsdPrim& InMesh)
     }
 
     Mesh = &InMesh;
+    MeshPointBased = static_cast<UsdGeomPointBased>(InMesh);
     SharedMeshData = std::make_shared<MeshData>();
     
-    CopyData<int, uint32_t>(TfToken(AttrIndices), SharedMeshData->Indices);
-    CopyDXFloat3Data<GfVec3f>(TfToken(AttrPositions), SharedMeshData->Positions);
-    CopyDXFloat3Data<GfVec3f>(TfToken(AttrNormals), SharedMeshData->Normals);
+    CopyData<int, uint32_t>(UsdGeomTokens->faceVertexIndices, SharedMeshData->Indices);
+    CopyDXFloat3Data<GfVec3f>(UsdGeomTokens->points, SharedMeshData->Positions);
+    CopyDXFloat3Data<GfVec3f>(UsdGeomTokens->normals, SharedMeshData->Normals);
     CopyDXFloat2Data<GfVec2f>(TfToken(AttrUVs), SharedMeshData->UVs);
 
     // Generate colour
     GenerateVertexColour(SharedMeshData);
 
-    // Triangulate Mesh
-    Triangulate(SharedMeshData);
+    // Triangulate Mesh 
+    TriangulateIndices(SharedMeshData);
+
+    // Triangulate data channels, these vary by interpolation type.
+    if (MeshPointBased.GetNormalsInterpolation() == UsdGeomTokens->faceVarying)
+    {
+        TriangulateFaceVarying3F(SharedMeshData, SharedMeshData->Normals);
+    }
 
     // Process data to render data.
     SharedMeshData->ProcessVertices(Reader->IsYUp());
@@ -179,10 +185,10 @@ bool RenderMesh::CopyDXFloat2Data(const pxr::TfToken& AttrName,
 }
 
 // Simple (Silly) triangulation algorithm that sets the indices for the mesh.
-void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
+void RenderMesh::TriangulateIndices(std::shared_ptr<MeshData> MeshData)
 {
     VtArray<int> FaceVtxCounts;
-    UsdAttribute ArrayAttr = Mesh->GetAttribute(TfToken(AttrFaceVtxCounts));
+    UsdAttribute ArrayAttr = Mesh->GetAttribute(UsdGeomTokens->faceVertexCounts);
     ArrayAttr.Get<VtArray<int>>(&FaceVtxCounts);
     
     bool bIsTriangulated = true;
@@ -211,7 +217,7 @@ void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
     
     const size_t TriVtxCount = TriCount * 3;
     std::vector<uint32_t> TempIndices;
-    TempIndices.reserve(TriVtxCount);
+    TempIndices.resize(TriVtxCount);
     
     size_t SrcOffset = 0;
     size_t TempOffset = 0;
@@ -222,6 +228,7 @@ void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
         switch (VtxCount)
         {
         case 3:
+            memcpy(TempIndices.data() + TempOffset, MeshData->Indices.data() + SrcOffset, 3 * sizeof(uint32_t));
             SrcOffset += 3;
             TempOffset += 3;
             break;
@@ -229,7 +236,6 @@ void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
             {
                 // [0, 1, 3, 2] Quad
                 // [0, 1, 3, 2, 0, 3] 2 Tris: (0, 1, 3) & (2, 0, 3)
-                TempIndices.resize(TempIndices.size() + 6);
                 memcpy(TempIndices.data() + TempOffset, MeshData->Indices.data() + SrcOffset, 4 * sizeof(uint32_t));
                 TempIndices[TempOffset + 4] = MeshData->Indices[SrcOffset];
                 TempIndices[TempOffset + 5] = MeshData->Indices[SrcOffset + 2];
@@ -245,4 +251,14 @@ void RenderMesh::Triangulate(std::shared_ptr<MeshData> MeshData)
     }
     
     MeshData->Indices = TempIndices; // Probably better way of assigning.
+}
+
+void RenderMesh::TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, std::vector<DirectX::XMFLOAT3>& Data)
+{
+    // Triangulate the data to be per vertex instead of shared vertex.
+    // e.g: 11 normal angles, initially only 7 shared points, 15 individual points after triangulation.
+
+
+    // Use UsdPrimVar type and the computeFlattened() flow described here:
+    // https://lucascheller.github.io/VFX-UsdSurvivalGuide/pages/core/elements/property.html?highlight=interpolation#attributePrimvarsInherited
 }

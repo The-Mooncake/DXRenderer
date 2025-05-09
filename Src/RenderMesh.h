@@ -4,6 +4,10 @@
 #include "pch.h"
 #include "Renderer.h"
 
+// Has lots of useful accessors:
+// https://openusd.org/dev/api/class_usd_geom_point_based.html
+#include "pxr/usd/usdGeom/pointBased.h"  
+
 // Struct of vertex vector data, e.g. vtx positions...
 struct MeshData
 {
@@ -46,11 +50,14 @@ private:
     // Helpers
     void GenerateVertexColour(std::shared_ptr<MeshData> MeshData);
 
-    void Triangulate(std::shared_ptr<MeshData> MeshData);
+    void TriangulateIndices(std::shared_ptr<MeshData> MeshData);
+
+    void TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, std::vector<DirectX::XMFLOAT3>& Data); 
     
 private:
     const USDScene* Reader = nullptr;
     pxr::UsdPrim* Mesh = nullptr;
+    pxr::UsdGeomPointBased MeshPointBased;
     std::shared_ptr<MeshData> SharedMeshData;
 };
 

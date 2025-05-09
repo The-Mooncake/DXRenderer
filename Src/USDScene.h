@@ -12,6 +12,7 @@ namespace RendererAssets
     const std::string Quad =        std::string("C:/Users/olive/Documents/DXRenderer/Meshes/Quad.usda");
     const std::string CubeTri =     std::string("C:/Users/olive/Documents/DXRenderer/Meshes/CubeTriangulated.usda");
     const std::string Cube =        std::string("C:/Users/olive/Documents/DXRenderer/Meshes/Cube.usda");
+    const std::string FaceAndTri =  std::string("C:/Users/olive/Documents/DXRenderer/Meshes/FaceAndTri.usda");
     
 }
 
@@ -28,7 +29,8 @@ public:
     void LoadExampleQuadTri() { LoadScene(RendererAssets::QuadTri); } 
     void LoadExampleQuad() { LoadScene(RendererAssets::Quad); } 
     void LoadExampleCubeTri() { LoadScene(RendererAssets::CubeTri); } 
-    void LoadExampleCube() { LoadScene(RendererAssets::Cube); } 
+    void LoadExampleCube() { LoadScene(RendererAssets::Cube); }
+    void LoadFaceAndTri() { LoadScene(RendererAssets::FaceAndTri); }
 
 private:
     pxr::UsdStageRefPtr Stage;
