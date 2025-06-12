@@ -53,6 +53,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 if(WIN32)
 	message("Building for Windows: disabling min/max macros from minwin.h which collide with OpenUSD max member function in robin_growth_policy.h")
 	add_compile_definitions(NOMINMAX)
+
 	add_compile_definitions(TBB_USE_DEBUG=0)
 	add_compile_definitions(YY_NO_UNISTD_H)
 	add_compile_definitions(BOOST_ALL_DYN_LINK)
@@ -64,6 +65,9 @@ if(WIN32)
 	add_compile_definitions(_CRT_SECURE_NO_DEPRECATE)
 	add_compile_definitions(_CRT_NONSTDC_NO_DEPRECATE)
 	add_compile_definitions(NO_WARN_MBCS_MFC_DEPRECATION)
+
+    message("Suppressing Cxx20 shared ptr atormic support warnings, required for Usd HdMeshUtil triangulation.")
+    add_compile_definitions(_SILENCE_CXX20_OLD_SHARED_PTR_ATOMIC_SUPPORT_DEPRECATION_WARNING)
 endif()
 
 
@@ -183,6 +187,7 @@ usdSkel
 usdUI
 usdUtils
 usdVol
+usdImaging
 vt
 work
 )

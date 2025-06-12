@@ -8,7 +8,15 @@
 #include "pxr/usd/sdf/path.h"
 #include "pxr/usd/usd/primRange.h"
 #include "pxr/usd/usd/tokens.h"
+#include "pxr/usd/usdGeom/primvarsAPI.h"
+#include "pxr/usdImaging/usdImaging/meshAdapter.h"
+#include "pxr/imaging/hd/meshUtil.h"
+#include "pxr/imaging/hd/bufferSource.h"
+#include "pxr/imaging/hd/bufferArray.h"
+#include "pxr/imaging/hd/vtBufferSource.h"
 
+// Test - Might need to move to cmakefile.
+#define _CXX20_DEPRECATE_OLD_SHARED_PTR_ATOMIC_SUPPORT
 
 using namespace pxr;
 
@@ -257,8 +265,70 @@ void RenderMesh::TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, st
 {
     // Triangulate the data to be per vertex instead of shared vertex.
     // e.g: 11 normal angles, initially only 7 shared points, 15 individual points after triangulation.
+    
+
+    // Use HdMeshUtil class which has triangulation algorithms, methods described here:
+    // https://github.com/PixarAnimationStudios/OpenUSD/issues/329
+    // This can handle triangulation of the mesh anyway, so should use this...
+    
+
+    UsdPrim prim = MeshPointBased.GetPrim();
+    
+    VtArray<GfVec3f> InNormals;
+    UsdAttribute AttrNormals = Mesh->GetAttribute(UsdGeomTokens->normals);
+    AttrNormals.Get<VtArray<GfVec3f>>(&InNormals);
+
+    UsdImagingMeshAdapter Adapter;
+
+    VtValue Topology = Adapter.GetTopology(*Mesh, prim.GetPath(), UsdTimeCode::Default());
+    
+    HdMeshUtil MeshUtil(&Topology.Get<HdMeshTopology>(), prim.GetPath());
+    
+    VtVec3iArray NewIndices;
+    VtIntArray NewParams; 
+    MeshUtil.ComputeTriangleIndices(&NewIndices, &NewParams);
+
+    VtValue normalsVal(InNormals);
+    VtValue triangulatedNormalsVal;
+    HdVtBufferSource buffer(TfToken("TempN"), normalsVal);
+    MeshUtil.ComputeTriangulatedFaceVaryingPrimvar(buffer.GetData(), static_cast<int>(buffer.GetNumElements()), buffer.GetTupleType().type, &triangulatedNormalsVal);
+
+    VtArray<GfVec3f> TriedNrms = triangulatedNormalsVal.Get<VtArray<GfVec3f>>();
 
 
-    // Use UsdPrimVar type and the computeFlattened() flow described here:
-    // https://lucascheller.github.io/VFX-UsdSurvivalGuide/pages/core/elements/property.html?highlight=interpolation#attributePrimvarsInherited
+    // Build new geom mesh...
+    UsdGeomMesh TriMesh(prim);
+    
+    UsdAttribute NewFaceVtxCountAttr = TriMesh.CreateFaceVertexCountsAttr();
+    VtArray<int> FaceVtxCount(NewIndices.size(), 3);
+    if (!NewFaceVtxCountAttr.Set(FaceVtxCount))
+    {
+        std::cout << "TriMesh failed to set the new face vertex counts!" << std::endl;
+    }
+    
+    UsdAttribute NewPointsAttr = TriMesh.CreatePointsAttr();
+    VtArray<GfVec3f> NewPoints;
+    MeshPointBased.GetPointsAttr().Get<VtArray<GfVec3f>>(&NewPoints);
+    if (!NewPointsAttr.Set(NewPoints))
+    {
+        std::cout << "TriMesh failed to set the point positions!" << std::endl;
+    }
+
+    // Convert from VtVec3iArray to VtArray<int> and set indices.
+    UsdAttribute NewIndicesAttr = TriMesh.CreateFaceVertexIndicesAttr();
+    VtArray<int> NewArrayIndices(NewIndices.size() * 3);
+    for (size_t i = 0; i < NewIndices.size(); i++)
+    {
+        GfVec3i Indices = NewIndices[i];
+        NewArrayIndices[i*3] = Indices[0];
+        NewArrayIndices[i*3 + 1] = Indices[1];
+        NewArrayIndices[i*3 + 2] = Indices[2];
+    }
+
+    if (!NewIndicesAttr.Set(NewArrayIndices))
+    {
+        std::cout << "TriMesh failed to set the new indices!" << std::endl;
+    }
+    
+    
 }
