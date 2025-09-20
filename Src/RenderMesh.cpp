@@ -109,25 +109,43 @@ void RenderMesh::Load(UsdPrim& InMesh)
         return; 
     }
 
-    Mesh = &InMesh;
+    Mesh = InMesh;
     MeshPointBased = static_cast<UsdGeomPointBased>(InMesh);
     SharedMeshData = std::make_shared<MeshData>();
+
+    TriangulateFaceVarying3F(SharedMeshData, SharedMeshData->Normals);
     
     CopyData<int, uint32_t>(UsdGeomTokens->faceVertexIndices, SharedMeshData->Indices);
-    CopyDXFloat3Data<GfVec3f>(UsdGeomTokens->points, SharedMeshData->Positions);
+    //CopyDXFloat3Data<GfVec3f>(UsdGeomTokens->points, SharedMeshData->Positions);
     CopyDXFloat3Data<GfVec3f>(UsdGeomTokens->normals, SharedMeshData->Normals);
     CopyDXFloat2Data<GfVec2f>(TfToken(AttrUVs), SharedMeshData->UVs);
 
+    // // Hack to test positions...
+    // VtArray<GfVec3f> PointArray;
+    // UsdAttribute PointAttr = MeshPointBased.GetPointsAttr(); //Mesh.GetAttribute(UsdGeomTokens->points);
+    // PointAttr.Get<VtArray<GfVec3f>>(&PointArray);
+    //
+    // for (size_t i = 0; i < PointArray.size(); ++i)
+    // {
+    //     DirectX::XMFLOAT3 Element;
+    //     Element.x = PointArray[i][0];
+    //     Element.y = PointArray[i][1];
+    //     Element.z = PointArray[i][2];
+    //     
+    //     SharedMeshData->Positions.emplace_back(Element);           
+    // }
+    // End hack to test positions.
+    
     // Generate colour
     GenerateVertexColour(SharedMeshData);
 
     // Triangulate Mesh 
-    TriangulateIndices(SharedMeshData);
+    //TriangulateIndices(SharedMeshData);
 
     // Triangulate data channels, these vary by interpolation type.
     if (MeshPointBased.GetNormalsInterpolation() == UsdGeomTokens->faceVarying)
     {
-        TriangulateFaceVarying3F(SharedMeshData, SharedMeshData->Normals);
+        //TriangulateFaceVarying3F(SharedMeshData, SharedMeshData->Normals);
     }
 
     // Process data to render data.
@@ -138,7 +156,7 @@ template <typename SrcT, typename DestT>
 bool RenderMesh::CopyData(const TfToken& AttrName, std::vector<DestT>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
+    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -154,7 +172,12 @@ template <typename SrcT>
 bool RenderMesh::CopyDXFloat3Data(const TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
+    if (!Mesh.HasAttribute(AttrName))
+    {
+        std::cout << "Error: Mesh does not have attribute: " << AttrName << std::endl;
+        return false;
+    }
+    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -176,7 +199,7 @@ bool RenderMesh::CopyDXFloat2Data(const pxr::TfToken& AttrName,
     std::vector<DirectX::XMFLOAT2>& DestArray)
 {
     VtArray<SrcT> UsdArray;
-    UsdAttribute ArrayAttr = Mesh->GetAttribute(AttrName);
+    UsdAttribute ArrayAttr = Mesh.GetAttribute(AttrName);
     ArrayAttr.Get<VtArray<SrcT>>(&UsdArray);
     
     DestArray.reserve(UsdArray.size());
@@ -196,7 +219,7 @@ bool RenderMesh::CopyDXFloat2Data(const pxr::TfToken& AttrName,
 void RenderMesh::TriangulateIndices(std::shared_ptr<MeshData> MeshData)
 {
     VtArray<int> FaceVtxCounts;
-    UsdAttribute ArrayAttr = Mesh->GetAttribute(UsdGeomTokens->faceVertexCounts);
+    UsdAttribute ArrayAttr = Mesh.GetAttribute(UsdGeomTokens->faceVertexCounts);
     ArrayAttr.Get<VtArray<int>>(&FaceVtxCounts);
     
     bool bIsTriangulated = true;
@@ -270,34 +293,120 @@ void RenderMesh::TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, st
     // Use HdMeshUtil class which has triangulation algorithms, methods described here:
     // https://github.com/PixarAnimationStudios/OpenUSD/issues/329
     // This can handle triangulation of the mesh anyway, so should use this...
+
+
+    // Copilot example
+    //
+    // // Load stage and mesh
+    // UsdStageRefPtr stage = UsdStage::Open("your_file.usd");
+    // UsdPrim meshPrim = stage->GetPrimAtPath(SdfPath("/YourMesh"));
+    // UsdGeomMesh mesh(meshPrim);
+    //
+    // // Get topology
+    // UsdImagingMeshAdapter adapter;
+    // VtValue topologyValue = adapter.GetTopology(meshPrim, meshPrim.GetPath(), UsdTimeCode::Default());
+    // HdMeshTopology topology = topologyValue.Get<HdMeshTopology>();
+    // HdMeshUtil meshUtil(&topology, meshPrim.GetPath());
+    //
+    // // Get face-varying normals
+    // UsdGeomPrimvar normalPrimvar = mesh.GetPrimvar(TfToken("normals"));
+    // VtVec3fArray rawNormals;
+    // if (!normalPrimvar || !normalPrimvar.Get(&rawNormals, UsdTimeCode::Default())) {
+    //     throw std::runtime_error("Failed to retrieve face-varying normals");
+    // }
+    //
+    // TfToken interpolation = normalPrimvar.GetInterpolation();
+    // if (interpolation != UsdGeomTokens->faceVarying) {
+    //     throw std::runtime_error("Normals are not face-varying");
+    // }
+    //
+    // // Remap normals to triangulated topology
+    // VtVec3fArray triangulatedNormals;
+    // meshUtil.ComputeTriangulatedFaceVaryingPrimvar(rawNormals, &triangulatedNormals);
+    //
+    // // Optional: Get face-varying UVs
+    // UsdGeomPrimvar uvPrimvar = mesh.GetPrimvar(TfToken("st"));
+    // VtVec2fArray rawUVs;
+    // VtVec2fArray triangulatedUVs;
+    // if (uvPrimvar && uvPrimvar.GetInterpolation() == UsdGeomTokens->faceVarying) {
+    //     if (uvPrimvar.Get(&rawUVs, UsdTimeCode::Default())) {
+    //         meshUtil.ComputeTriangulatedFaceVaryingPrimvar(rawUVs, &triangulatedUVs);
+    //     }
+    // }
+    //
+    // // Output sizes for verification
+    // std::cout << "Triangulated Normals: " << triangulatedNormals.size() << std::endl;
+    // std::cout << "Triangulated UVs: " << triangulatedUVs.size() << std::endl;
+    //
+
+
+    // End Copilot example
+
+
     
 
-    UsdPrim prim = MeshPointBased.GetPrim();
+    UsdPrim Prim = MeshPointBased.GetPrim();
+    
+    // Setup triangulation tools.
+    UsdImagingMeshAdapter Adapter;
+    VtValue Topology = Adapter.GetTopology(Mesh, Prim.GetPath(), UsdTimeCode::Default());
+    HdMeshUtil MeshUtil(&Topology.Get<HdMeshTopology>(), Prim.GetPath());
+    
+    // Original mesh values
+    VtArray<GfVec3f> InPositions;
+    UsdAttribute AttrPositions = Mesh.GetAttribute(UsdGeomTokens->points);
+    AttrPositions.Get<VtArray<GfVec3f>>(&InPositions);
     
     VtArray<GfVec3f> InNormals;
-    UsdAttribute AttrNormals = Mesh->GetAttribute(UsdGeomTokens->normals);
+    UsdAttribute AttrNormals = Mesh.GetAttribute(UsdGeomTokens->normals);
     AttrNormals.Get<VtArray<GfVec3f>>(&InNormals);
 
-    UsdImagingMeshAdapter Adapter;
-
-    VtValue Topology = Adapter.GetTopology(*Mesh, prim.GetPath(), UsdTimeCode::Default());
-    
-    HdMeshUtil MeshUtil(&Topology.Get<HdMeshTopology>(), prim.GetPath());
-    
+    // Get new triangulation indices.
     VtVec3iArray NewIndices;
     VtIntArray NewParams; 
     MeshUtil.ComputeTriangleIndices(&NewIndices, &NewParams);
 
-    VtValue normalsVal(InNormals);
-    VtValue triangulatedNormalsVal;
-    HdVtBufferSource buffer(TfToken("TempN"), normalsVal);
-    MeshUtil.ComputeTriangulatedFaceVaryingPrimvar(buffer.GetData(), static_cast<int>(buffer.GetNumElements()), buffer.GetTupleType().type, &triangulatedNormalsVal);
+    // Triangulate the positions.
+    // VtValue InPositionsVal(InPositions);
+    // VtValue OutPositionsVal;
+    // HdVtBufferSource PositionsBuffer(TfToken("TempP"), InPositionsVal);
+    // MeshUtil.ComputeTriangulatedFaceVaryingPrimvar(PositionsBuffer.GetData(), static_cast<int>(PositionsBuffer.GetNumElements()), PositionsBuffer.GetTupleType().type, &OutPositionsVal);
+    // VtArray<GfVec3f> TriedPositions = OutPositionsVal.Get<VtArray<GfVec3f>>();
+    VtVec3dArray TriedPositions;
+    for (const pxr::GfVec3i& tri : NewIndices) {
+        TriedPositions.push_back(InPositions[tri[0]]);
+        TriedPositions.push_back(InPositions[tri[1]]);
+        TriedPositions.push_back(InPositions[tri[2]]);
 
-    VtArray<GfVec3f> TriedNrms = triangulatedNormalsVal.Get<VtArray<GfVec3f>>();
+        // DirectX::XMFLOAT3 Element0;
+        // Element0.x = InPositions[tri[0]][0];
+        // Element0.y = InPositions[tri[0]][1];
+        // Element0.z = InPositions[tri[0]][2];
+        // SharedMeshData->Positions.emplace_back(Element0);
+        //
+        //
+    }
+    for (const GfVec3d& Pos : TriedPositions)
+    {
+        DirectX::XMFLOAT3 Element0;
+        Element0.x = Pos[0];
+        Element0.y = Pos[1];
+        Element0.z = Pos[2];
+        SharedMeshData->Positions.emplace_back(Element0);
+    }
 
 
+    
+    // Triangulate the normals.
+    VtValue InNormalsVal(InNormals);
+    VtValue OutNormalsVal;
+    HdVtBufferSource NormalsBuffer(TfToken("TempN"), InNormalsVal);
+    MeshUtil.ComputeTriangulatedFaceVaryingPrimvar(NormalsBuffer.GetData(), static_cast<int>(NormalsBuffer.GetNumElements()), NormalsBuffer.GetTupleType().type, &OutNormalsVal);
+    VtArray<GfVec3f> TriedNrms = OutNormalsVal.Get<VtArray<GfVec3f>>();
+    
     // Build new geom mesh...
-    UsdGeomMesh TriMesh(prim);
+    TriMesh = UsdGeomMesh(Prim);
+    TriMesh.SetNormalsInterpolation(UsdGeomTokens->faceVarying);
     
     UsdAttribute NewFaceVtxCountAttr = TriMesh.CreateFaceVertexCountsAttr();
     VtArray<int> FaceVtxCount(NewIndices.size(), 3);
@@ -307,9 +416,11 @@ void RenderMesh::TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, st
     }
     
     UsdAttribute NewPointsAttr = TriMesh.CreatePointsAttr();
-    VtArray<GfVec3f> NewPoints;
-    MeshPointBased.GetPointsAttr().Get<VtArray<GfVec3f>>(&NewPoints);
-    if (!NewPointsAttr.Set(NewPoints))
+    if (NewPointsAttr.Set(TriedPositions))
+    
+    //VtArray<GfVec3f> NewPoints;
+    //MeshPointBased.GetPointsAttr().Get<VtArray<GfVec3f>>(&NewPoints);
+    //if (!NewPointsAttr.Set(NewPoints))
     {
         std::cout << "TriMesh failed to set the point positions!" << std::endl;
     }
@@ -319,16 +430,30 @@ void RenderMesh::TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, st
     VtArray<int> NewArrayIndices(NewIndices.size() * 3);
     for (size_t i = 0; i < NewIndices.size(); i++)
     {
-        GfVec3i Indices = NewIndices[i];
-        NewArrayIndices[i*3] = Indices[0];
-        NewArrayIndices[i*3 + 1] = Indices[1];
-        NewArrayIndices[i*3 + 2] = Indices[2];
-    }
+        // Normal indices and positions indices are not the same. Mesh ends up being incorrect.
+        
+        NewArrayIndices[i*3] = i*3;
+        NewArrayIndices[i*3 + 1] = i*3 + 1;
+        NewArrayIndices[i*3 + 2] = i*3 + 2;
 
+        // GfVec3i Indices = NewIndices[i];
+        //NewArrayIndices[i*3] = NewIndices[i][0];
+        //NewArrayIndices[i*3 + 1] = NewIndices[i][1];
+        //NewArrayIndices[i*3 + 2] = NewIndices[i][2];
+    }
+    // Set new attrs into the triangulate mesh.
     if (!NewIndicesAttr.Set(NewArrayIndices))
     {
         std::cout << "TriMesh failed to set the new indices!" << std::endl;
     }
     
+    UsdAttribute NormalsAttr = TriMesh.CreateNormalsAttr();
+    if (!NormalsAttr.Set(TriedNrms))
+    {
+        std::cout << "TriMesh failed to set the triangulated normals!" << std::endl;
+    }
+    
+    Mesh = TriMesh.GetPrim();
+    MeshPointBased = static_cast<UsdGeomPointBased>(TriMesh);
     
 }

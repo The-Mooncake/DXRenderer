@@ -22,7 +22,7 @@ struct VS_OUTPUT
 };
 
 static const float3 LightPosition = float3(1.0f, 0.0f, 5.0f);
-static const float LightIntensity = 5.0f;
+static const float LightIntensity = 1.0f;
 
 VS_OUTPUT VSMain(VS_INPUT In)
 {
@@ -52,10 +52,10 @@ float4 PSMain(VS_OUTPUT In) : SV_TARGET
     float Lambert = dot(normalize(In.Normal), normalize(LightDir));
 
     // Falloff - not working.
-    // Note cube normals don't seem to be correct, revisit this.
     float LightDist = length(LightPosition - In.Position);
-    float LightStrength = LightIntensity / LightDist * LightDist; //(LightIntensity + a * LightDist + b * LightDist * LightDist);
-    float Lighting = LightStrength * Lambert;
+    float Attenuation = 1 / (LightDist * LightDist);
+    //float LightStrength = LightIntensity / LightDist * (LightIntensity + a * LightDist + b * LightDist * LightDist);
+    float Lighting = Attenuation * Lambert;
 
     // Final Composition
     OutColour *= Lambert;

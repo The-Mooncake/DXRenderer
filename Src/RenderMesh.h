@@ -7,6 +7,7 @@
 // Has lots of useful accessors:
 // https://openusd.org/dev/api/class_usd_geom_point_based.html
 #include "pxr/usd/usdGeom/pointBased.h"  
+#include "pxr/usd/usdGeom/mesh.h"  
 
 // Struct of vertex vector data, e.g. vtx positions...
 struct MeshData
@@ -56,7 +57,8 @@ private:
     
 private:
     const USDScene* Reader = nullptr;
-    pxr::UsdPrim* Mesh = nullptr;
+    pxr::UsdPrim Mesh;
+    pxr::UsdGeomMesh TriMesh; // New prim that has been triangulated with USD tools.
     pxr::UsdGeomPointBased MeshPointBased;
     std::shared_ptr<MeshData> SharedMeshData;
 };

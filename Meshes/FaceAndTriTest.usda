@@ -1,0 +1,48 @@
+#usda 1.0
+(
+    defaultPrim = "root"
+    doc = "Blender v4.3.2"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "root" (
+    customData = {
+        dictionary Blender = {
+            bool generated = 1
+        }
+    }
+)
+{
+    def Xform "FaceAndTri"
+    {
+        custom string userProperties:blender:object_name = "FaceAndTri"
+
+        def Mesh "Cube_001" (
+            active = true
+        )
+        {
+            float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+            int[] faceVertexCounts = [3, 4, 4]
+            int[] faceVertexIndices = [0, 5, 4, 4, 5, 3, 2, 2, 3, 6, 1]
+            normal3f[] normals = [(0, 1, 0), (0, 1, 0), (0, 1, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0)] (
+                interpolation = "faceVarying"
+            )
+            point3f[] points = [(-0.5, 0.5, -0.5), (-0.5, -0.5, -0.5), (0.5, -0.5, -0.5), (0.5, -0.5, 0.5), (0.5, 0.5, -0.5), (0.5, 0.5, 0.5), (-0.5, -0.5, 0.5)]
+            texCoord2f[] primvars:st = [(0.375, 0.25), (0.625, 0.5), (0.375, 0.5), (0.375, 0.5), (0.625, 0.5), (0.625, 0.75), (0.375, 0.75), (0.375, 0.75), (0.625, 0.75), (0.625, 0.75), (0.375, 0.75)] (
+                interpolation = "faceVarying"
+            )
+            uniform token subdivisionScheme = "none"
+            custom string userProperties:blender:data_name = "Cube.001"
+        }
+    }
+
+    def DomeLight "env_light"
+    {
+        float inputs:intensity = 1
+        asset inputs:texture:file = @.\textures\color_121212.hdr@
+        float3 xformOp:rotateXYZ = (90, 1.2722219e-14, 90)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+}
+

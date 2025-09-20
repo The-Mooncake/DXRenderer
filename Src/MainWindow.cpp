@@ -129,7 +129,7 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 int MainWindow::Run()
 {
     // Load the scene.
-    Scene->LoadFaceAndTri();
+    Scene->LoadExampleCube();
 
     RendererDX->Setup();
 
