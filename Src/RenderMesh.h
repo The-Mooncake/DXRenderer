@@ -23,8 +23,11 @@ public:
     std::vector<DirectX::XMFLOAT2> UVs;
     std::vector<DirectX::XMFLOAT4> Colours;
     
-    DirectX::XMFLOAT3 VectorToRenderSpace(bool bIsYUp, size_t Idx, std::vector<DirectX::XMFLOAT3>& Data);
     void ProcessVertices(bool bIsYUp);
+
+private:
+    DirectX::XMFLOAT3 VectorToRenderSpace(bool bIsYUp, size_t Idx, std::vector<DirectX::XMFLOAT3>& Data);
+    void GenerateVertexColour();
 };
 
 class RenderMesh
@@ -38,28 +41,24 @@ public:
 private:
     bool ValidatePrim(pxr::UsdPrim& Mesh);
     
-    template<typename SrcT, typename DestT>
-    bool CopyData(const pxr::TfToken& AttrName, std::vector<DestT>& DestArray);
-
-    // Dx data accessors are different to usd types, custom implementations for copying data required.
-    template<typename SrcT>
-    bool CopyDXFloat3Data(const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT3>& DestArray);
-
-    template<typename SrcT>
-    bool CopyDXFloat2Data(const pxr::TfToken& AttrName, std::vector<DirectX::XMFLOAT2>& DestArray);
+    // DX Helpers to copy data of various sizes to the SharedMeshData arrays.
+    template <typename SrcT>
+    bool CopyData_DXFloat2(const SrcT& SrcArray, std::vector<DirectX::XMFLOAT2>& DestArray);
+    
+    template <typename SrcT>
+    bool CopyData_DXFloat3(const SrcT& SrcArray, std::vector<DirectX::XMFLOAT3>& DestArray);
+    
+    template <typename SrcT>
+    bool CopyData_DXFloat4(const SrcT& SrcArray, std::vector<DirectX::XMFLOAT4>& DestArray);
 
     // Helpers
     void GenerateVertexColour(std::shared_ptr<MeshData> MeshData);
 
-    void TriangulateIndices(std::shared_ptr<MeshData> MeshData);
-
-    void TriangulateFaceVarying3F(std::shared_ptr<MeshData> MeshData, std::vector<DirectX::XMFLOAT3>& Data); 
+    void TriangulateUsdGeometry(); 
     
 private:
     const USDScene* Reader = nullptr;
     pxr::UsdPrim Mesh;
-    pxr::UsdGeomMesh TriMesh; // New prim that has been triangulated with USD tools.
-    pxr::UsdGeomPointBased MeshPointBased;
     std::shared_ptr<MeshData> SharedMeshData;
 };
 
