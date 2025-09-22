@@ -13,6 +13,9 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
+#include "ImGuiDescHeap.h"
+
+
 
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
@@ -53,16 +56,27 @@ bool Renderer::Setup()
     
     SMPipe = std::make_unique<StaticMeshPipeline>(this);
 
+    ImguiHeapAlloc = std::make_unique<ImguiDescHeapAllocator>();
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.NumDescriptors = 64;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
+            return false;
+        ImguiHeapAlloc->Create(Device.Get(), SrvBufferHeap.Get());
+    }
+    
     // Setup Platform/Renderer backends
     ImGui_ImplDX12_InitInfo init_info = {};
     init_info.Device = Device.Get();
     init_info.CommandQueue = CmdQueue.Get();
     init_info.NumFramesInFlight = FrameBufferCount;
     init_info.RTVFormat = FrameBufferFormat; 
-    init_info.SrvDescriptorHeap = FrameBufferHeap.Get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return YOUR_ALLOCATOR_FUNCTION_FOR_SRV_DESCRIPTORS(...); };
-    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)            { return YOUR_FREE_FUNCTION_FOR_SRV_DESCRIPTORS(...); };
-
+    init_info.SrvDescriptorHeap = SrvBufferHeap.Get();
+    ImguiDescHeapAllocator* AllocPtr = ImguiHeapAlloc.get();
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return ImguiHeapAlloc->Alloc(out_cpu_handle, out_gpu_handle); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return ImguiHeapAlloc->Free(cpu_handle, gpu_handle); };
 
     
     // DX Setup correctly.
@@ -371,6 +385,18 @@ bool Renderer::SetupMeshRootSignature()
     return bResult;
 }
 
+void Renderer::ImGuiHeapAlloc(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle,
+    D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
+{
+    return ImguiHeapAlloc->Alloc(out_cpu_desc_handle, out_gpu_desc_handle);   
+}
+
+void Renderer::ImGuiHeapFree(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle,
+    D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+{
+    return ImguiHeapAlloc->Free(cpu_handle, gpu_handle);
+}
+
 void Renderer::BeginFrame()
 {
     nvtx3::scoped_range r("BeginFrame");
@@ -444,6 +470,11 @@ void Renderer::EndFrame()
     }
     CmdListEndFrame->SetName(L"CmdList-EndFrame");
 
+    // Imgui Rendering
+    // (Your code clears your framebuffer, renders your other stuff etc.)
+    ImGui::Render();
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
+
     // Indicate that the back buffer will be used to present.
     D3D12_RESOURCE_BARRIER PresentBarrier;
     PresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -509,6 +540,14 @@ void Renderer::Update()
 
     // Update constant buffer.
     SMPipe->Update(WVP);
+
+
+    // Start the Dear ImGui frame
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow(); // Show demo window! :)
+    
 }
 
 void Renderer::Render()
@@ -527,6 +566,8 @@ void Renderer::Render()
 
     EndFrame();
     Cmds.emplace_back(CmdListEndFrame.Get());
+
+
 
     CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 

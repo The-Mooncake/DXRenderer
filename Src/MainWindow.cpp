@@ -40,12 +40,20 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
 MainWindow::~MainWindow()
 {
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+    
     G_MainWindow = nullptr;
 }
 
 LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     nvtx3::scoped_range r{ "WinProcedure" };
+
+    extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
 
     switch (message)
     {
@@ -136,10 +144,11 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 void MainWindow::InitImgui()
 {
     IMGUI_CHECKVERSION();
-    Imgui_Context = ImGui::CreateContext();
-    Imgui_Io = ImGui::GetIO();
-    Imgui_Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    Imgui_Io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //Imgui_Context = ImGui::CreateContext();
+    ImGui::CreateContext();
+    Imgui_Io = &ImGui::GetIO();
+    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 }
 
 int MainWindow::Run()

@@ -10,6 +10,7 @@ set(Header_Files
     "USDScene.h"
     "RenderMesh.h"
     "StaticMeshPipeline.h"
+    "ImGuiDescHeap.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -20,6 +21,7 @@ set(Source_Files
     "USDScene.cpp"
     "RenderMesh.cpp"
     "StaticMeshPipeline.cpp"
+    "ImGuiDescHeap.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 

@@ -43,7 +43,7 @@ public:
 
     // Imgui Globals
     struct ImguiContext* Imgui_Context;
-    struct ImGuiIO& Imgui_Io;
+    struct ImGuiIO* Imgui_Io;
     
 private:
 
