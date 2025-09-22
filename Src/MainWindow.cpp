@@ -19,6 +19,11 @@
 // NVTX
 #include <nvtx3/nvtx3.hpp>
 
+// Imgui
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 
 MainWindow::MainWindow(HINSTANCE InHInstance)
 {
@@ -27,6 +32,8 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
     G_MainWindow = this;
     hInstance = InHInstance;
 
+    InitImgui();
+    
     Scene = std::make_unique<USDScene>();
     RendererDX = std::make_unique<Renderer>();
 }
@@ -124,6 +131,15 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 
     bResult = true;
     return bResult;
+}
+
+void MainWindow::InitImgui()
+{
+    IMGUI_CHECKVERSION();
+    Imgui_Context = ImGui::CreateContext();
+    Imgui_Io = ImGui::GetIO();
+    Imgui_Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    Imgui_Io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 }
 
 int MainWindow::Run()

@@ -33,10 +33,17 @@ public:
     const double& GetTime() const { return Time; } 
     bool SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight);
 
+private:
+    void InitImgui();
+
 public:
     // App Global Classes, can be accessed through G_MainWindow
     std::unique_ptr<class Renderer> RendererDX;
     std::unique_ptr<class USDScene> Scene;
+
+    // Imgui Globals
+    struct ImguiContext* Imgui_Context;
+    struct ImGuiIO& Imgui_Io;
     
 private:
 

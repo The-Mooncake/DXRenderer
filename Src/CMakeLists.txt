@@ -160,6 +160,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
 # NVTX
 target_link_libraries(${PROJECT_NAME} PRIVATE nvtx3-cpp)
 
+# IMGUI
+find_package(imgui CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE imgui::imgui)
+  
 # USD
 find_package(pxr CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE

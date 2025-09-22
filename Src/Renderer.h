@@ -75,7 +75,6 @@ public:
 
     float MaxDepth = 1.0f;
     
-    
     // Render State
     bool bDXReady = false;
 

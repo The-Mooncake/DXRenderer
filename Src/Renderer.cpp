@@ -9,6 +9,11 @@
 
 #include <nvtx3/nvtx3.hpp>
 
+// Imgui
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 615; } 
@@ -47,7 +52,19 @@ bool Renderer::Setup()
     if (!SetupMeshRootSignature())                  { return false; }
     
     SMPipe = std::make_unique<StaticMeshPipeline>(this);
-       
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplDX12_InitInfo init_info = {};
+    init_info.Device = Device.Get();
+    init_info.CommandQueue = CmdQueue.Get();
+    init_info.NumFramesInFlight = FrameBufferCount;
+    init_info.RTVFormat = FrameBufferFormat; 
+    init_info.SrvDescriptorHeap = FrameBufferHeap.Get();
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return YOUR_ALLOCATOR_FUNCTION_FOR_SRV_DESCRIPTORS(...); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)            { return YOUR_FREE_FUNCTION_FOR_SRV_DESCRIPTORS(...); };
+
+
+    
     // DX Setup correctly.
     bDXReady = true;
     return bDXReady;
