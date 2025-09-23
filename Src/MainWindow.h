@@ -15,7 +15,12 @@
 #include <dxgi1_6.h>
 #include <memory>
 
+#include "ImGuiDescHeap.h"
+
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
+
+inline ImguiDescHeapAllocator ImguiHeapAlloc;
+
 
 class MainWindow
 {

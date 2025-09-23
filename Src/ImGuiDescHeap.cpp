@@ -16,11 +16,13 @@ void ImguiDescHeapAllocator::Create(ID3D12Device* device, ID3D12DescriptorHeap* 
     for (int n = desc.NumDescriptors; n > 0; n--)
         FreeIndices.push_back(n - 1);
 }
+
 void ImguiDescHeapAllocator::Destroy()
 {
     Heap = nullptr;
     FreeIndices.clear();
 }
+
 void ImguiDescHeapAllocator::Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
 {
     IM_ASSERT(FreeIndices.Size > 0);
@@ -29,6 +31,7 @@ void ImguiDescHeapAllocator::Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_han
     out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
     out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
 }
+
 void ImguiDescHeapAllocator::Free(D3D12_CPU_DESCRIPTOR_HANDLE out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE out_gpu_desc_handle)
 {
     int cpu_idx = (int)((out_cpu_desc_handle.ptr - HeapStartCpu.ptr) / HeapHandleIncrement);

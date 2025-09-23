@@ -55,30 +55,18 @@ bool Renderer::Setup()
     if (!SetupMeshRootSignature())                  { return false; }
     
     SMPipe = std::make_unique<StaticMeshPipeline>(this);
-
-    ImguiHeapAlloc = std::make_unique<ImguiDescHeapAllocator>();
-    {
-        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.NumDescriptors = 64;
-        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
-            return false;
-        ImguiHeapAlloc->Create(Device.Get(), SrvBufferHeap.Get());
-    }
     
-    // Setup Platform/Renderer backends
-    ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = Device.Get();
-    init_info.CommandQueue = CmdQueue.Get();
-    init_info.NumFramesInFlight = FrameBufferCount;
-    init_info.RTVFormat = FrameBufferFormat; 
-    init_info.SrvDescriptorHeap = SrvBufferHeap.Get();
-    ImguiDescHeapAllocator* AllocPtr = ImguiHeapAlloc.get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return ImguiHeapAlloc->Alloc(out_cpu_handle, out_gpu_handle); };
-    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return ImguiHeapAlloc->Free(cpu_handle, gpu_handle); };
-
     
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.NumDescriptors = 64;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
+        return false;
+    ImguiHeapAlloc.Create(Device.Get(), SrvBufferHeap.Get());
+
+
+
     // DX Setup correctly.
     bDXReady = true;
     return bDXReady;
@@ -385,18 +373,6 @@ bool Renderer::SetupMeshRootSignature()
     return bResult;
 }
 
-void Renderer::ImGuiHeapAlloc(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle,
-    D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
-{
-    return ImguiHeapAlloc->Alloc(out_cpu_desc_handle, out_gpu_desc_handle);   
-}
-
-void Renderer::ImGuiHeapFree(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle,
-    D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
-{
-    return ImguiHeapAlloc->Free(cpu_handle, gpu_handle);
-}
-
 void Renderer::BeginFrame()
 {
     nvtx3::scoped_range r("BeginFrame");
@@ -472,6 +448,8 @@ void Renderer::EndFrame()
 
     // Imgui Rendering
     // (Your code clears your framebuffer, renders your other stuff etc.)
+    
+    CmdListEndFrame->SetDescriptorHeaps(1, SrvBufferHeap.GetAddressOf());
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
 
@@ -543,11 +521,11 @@ void Renderer::Update()
 
 
     // Start the Dear ImGui frame
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    ImGui::ShowDemoWindow(); // Show demo window! :)
-    
+    // ImGui_ImplDX12_NewFrame();
+    // ImGui_ImplWin32_NewFrame();
+    // ImGui::NewFrame();
+    // ImGui::ShowDemoWindow(); // Show demo window! :)
+    //
 }
 
 void Renderer::Render()
@@ -558,6 +536,12 @@ void Renderer::Render()
     
     // Build and execute the command list.
     Cmds.clear();
+
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow(); // Show demo window! :)
+    
     
     BeginFrame();
     Cmds.emplace_back(CmdListBeginFrame.Get());
@@ -566,9 +550,7 @@ void Renderer::Render()
 
     EndFrame();
     Cmds.emplace_back(CmdListEndFrame.Get());
-
-
-
+    
     CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 
     // Render to screen

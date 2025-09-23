@@ -6,22 +6,22 @@ set(PROJECT_NAME DXRenderer)
 set(Header_Files
     "MainWindow.h"
     "pch.h"
+    "ImGuiDescHeap.h"
     "Renderer.h"
     "USDScene.h"
     "RenderMesh.h"
     "StaticMeshPipeline.h"
-    "ImGuiDescHeap.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     "DXRenderer.cpp"
+    "ImGuiDescHeap.cpp"
     "Renderer.cpp"
     "MainWindow.cpp"
     "USDScene.cpp"
     "RenderMesh.cpp"
     "StaticMeshPipeline.cpp"
-    "ImGuiDescHeap.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 

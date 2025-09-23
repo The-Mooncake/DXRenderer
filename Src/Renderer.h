@@ -20,6 +20,7 @@
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
 
+
 struct Vertex
 {
     DirectX::XMFLOAT3 Position;
@@ -50,9 +51,6 @@ private:
     bool SetupDevice();
     bool SetupSwapChain();
     bool SetupMeshRootSignature();
-
-    void ImGuiHeapAlloc(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle);
-    void ImGuiHeapFree(struct ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle);
 
     // Frame Stages
     // From https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Multithreading/src/D3D12Multithreading.cpp
@@ -123,7 +121,7 @@ public:
     CB_WVP WVP; // World View Projection buffer.
 
     // Imgui
-    static std::shared_ptr<struct ImguiDescHeapAllocator> ImguiHeapAlloc;
+    //static ImguiDescHeapAllocator ImguiHeapAlloc;
     ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
 
     

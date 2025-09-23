@@ -32,7 +32,7 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
     G_MainWindow = this;
     hInstance = InHInstance;
 
-    InitImgui();
+    //InitImgui();
     
     Scene = std::make_unique<USDScene>();
     RendererDX = std::make_unique<Renderer>();
@@ -158,6 +158,32 @@ int MainWindow::Run()
 
     RendererDX->Setup();
 
+    IMGUI_CHECKVERSION();
+    //Imgui_Context = ImGui::CreateContext();
+    ImGui::CreateContext();
+    Imgui_Io = &ImGui::GetIO();
+    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplDX12_InitInfo init_info = {};
+    init_info.Device = RendererDX.get()->Device.Get();
+    init_info.CommandQueue = RendererDX.get()->CmdQueue.Get();
+    init_info.NumFramesInFlight = RendererDX.get()->FrameBufferCount;
+    init_info.RTVFormat = RendererDX.get()->FrameBufferFormat; 
+    init_info.SrvDescriptorHeap = RendererDX.get()->SrvBufferHeap.Get();
+
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return ImguiHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return ImguiHeapAlloc.Free(cpu_handle, gpu_handle); };
+    ImGui_ImplWin32_Init(hWnd);
+    if (!ImGui_ImplDX12_Init(&init_info))
+    {
+        MessageBoxW(nullptr, L"Failed to Initialise Imgui DX12!.", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return false;
+    }
+    
+    
     // Show, the window hidden by default.
     ShowWindow(hWnd, SW_SHOW);
     
@@ -181,8 +207,8 @@ int MainWindow::Run()
         else
         {
             // Update renderer when no messages received...
-            RendererDX->Render();
             RendererDX->Update();
+            RendererDX->Render();
         }
     
     }
