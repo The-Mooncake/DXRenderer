@@ -414,9 +414,9 @@ void Renderer::EndFrame()
     CmdListEndFrame->SetName(L"CmdList-EndFrame");
 
     // Imgui Rendering
-    // (Your code clears your framebuffer, renders your other stuff etc.)
-    
+    SetBackBufferOM(CmdListEndFrame); // Imgui requires the output merger.
     CmdListEndFrame->SetDescriptorHeaps(1, SrvBufferHeap.GetAddressOf());
+    ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
 
