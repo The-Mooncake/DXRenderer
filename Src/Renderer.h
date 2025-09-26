@@ -32,10 +32,14 @@ class Renderer
 {
 public:
     ~Renderer();
-    
+
     // Rendering Setup
     bool Setup();
-
+    
+    // Create/Clean RTs for the frame buffers
+    bool CreateFrameBuffers();
+    void CleanupFrameBuffers();
+    
     // Main render loop.
     void Update();
     void Render();
@@ -58,6 +62,8 @@ private:
     void MidFrame();
     void EndFrame();
 
+    //Utils
+    bool SetupImguiRendering();
 
 public:
     // Pipelines
@@ -67,8 +73,8 @@ public:
     bool VSyncEnabled = true;
     
     // Window and Viewport Properties
-    UINT Width = 800;
-    UINT Height = 600;
+    UINT Width = 2560;
+    UINT Height = 1440;
     float NearPlane = 0.01f; // Can't be zero for depth buffer.
     float FarPlane = 100.0f;
 

@@ -53,19 +53,9 @@ bool Renderer::Setup()
     if (!G_MainWindow->SetupWindow(Width, Height))  { return false; }
     if (!SetupSwapChain())                          { return false; }
     if (!SetupMeshRootSignature())                  { return false; }
+    if (!SetupImguiRendering())                     { return false; }
     
     SMPipe = std::make_unique<StaticMeshPipeline>(this);
-    
-    
-    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    desc.NumDescriptors = 64;
-    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
-        return false;
-    ImguiHeapAlloc.Create(Device.Get(), SrvBufferHeap.Get());
-
-
 
     // DX Setup correctly.
     bDXReady = true;
@@ -226,33 +216,10 @@ bool Renderer::SetupSwapChain()
     }
     D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
     FrameBufferHeap->SetName(L"Frame Buffer Heap");
 
-    // Create Buffer Resources.
-    D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
-    RtvDesc.Format = FrameBufferFormat;
-    RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-    // Swap chain rtv setup.
-    FrameBuffers.resize(FrameBufferCount);
-    for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
-    {
-        ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
-        HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
-        if (FAILED(HR))
-        {
-            MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
-            printf("Failed to get buffer at idx: %d", Idx);
-            PostQuitMessage(1);
-            return  bResult;
-        }
-        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
-
-        // Offset Buffer Handle
-        BufferHandle.ptr += RtvHeapOffsetSize;
-    }
-
+    if (bResult = CreateFrameBuffers(); !bResult) { return bResult; } 
+    
     // Create Depth/Stencil Buffer
     D3D12_DESCRIPTOR_HEAP_DESC DepthHeapDesc = {};
     DepthHeapDesc.NumDescriptors = 1;
@@ -462,7 +429,8 @@ void Renderer::EndFrame()
     PresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     PresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     CmdListEndFrame->ResourceBarrier(1, &PresentBarrier);
-
+    
+    // Finish frame.
     CmdListEndFrame->EndEvent();
     HR = CmdListEndFrame->Close();
     if (FAILED(HR))
@@ -470,6 +438,56 @@ void Renderer::EndFrame()
         MessageBoxW(nullptr, L"EndFrame: Failed to close 'CmdListEndFrame'!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
+}
+
+bool Renderer::SetupImguiRendering()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.NumDescriptors = 64;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
+        return false;
+    ImguiHeapAlloc.Create(Device.Get(), SrvBufferHeap.Get());
+    SrvBufferHeap->SetName(L"Imgui-SrvBufferHeap");
+    return true;
+}
+
+bool Renderer::CreateFrameBuffers()
+{
+    HRESULT HR;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+    D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
+    RtvDesc.Format = FrameBufferFormat;
+    RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    
+    FrameBuffers.resize(FrameBufferCount);
+    for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
+    {
+        ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
+        HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
+        if (FAILED(HR))
+        {
+            MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
+            printf("Failed to get buffer at idx: %d", Idx);
+            PostQuitMessage(1);
+            return false;
+        }
+        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
+
+        // Offset Buffer Handle
+        BufferHandle.ptr += RtvHeapOffsetSize;
+    }
+    return true;
+}
+
+void Renderer::CleanupFrameBuffers()
+{
+    WaitForPreviousFrame();
+    FrameBuffers.clear();
 }
 
 void Renderer::WaitForPreviousFrame()
@@ -518,14 +536,13 @@ void Renderer::Update()
 
     // Update constant buffer.
     SMPipe->Update(WVP);
-
-
+    
     // Start the Dear ImGui frame
-    // ImGui_ImplDX12_NewFrame();
-    // ImGui_ImplWin32_NewFrame();
-    // ImGui::NewFrame();
-    // ImGui::ShowDemoWindow(); // Show demo window! :)
-    //
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow(); // Show demo window! :)
+    
 }
 
 void Renderer::Render()
@@ -537,12 +554,6 @@ void Renderer::Render()
     // Build and execute the command list.
     Cmds.clear();
 
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    ImGui::ShowDemoWindow(); // Show demo window! :)
-    
-    
     BeginFrame();
     Cmds.emplace_back(CmdListBeginFrame.Get());
 

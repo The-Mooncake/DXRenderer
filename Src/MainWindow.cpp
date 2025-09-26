@@ -40,18 +40,22 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
 MainWindow::~MainWindow()
 {
+    // Shutdown imgui
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
-    
+
+    // Clear ptr
     G_MainWindow = nullptr;
 }
+
+// Imgui WinProc Implementation
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     nvtx3::scoped_range r{ "WinProcedure" };
 
-    extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
         return true;
 
@@ -64,12 +68,28 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
-        
-    case WM_PAINT:
-        G_MainWindow->RendererDX->Update();
-        G_MainWindow->RendererDX->Render();
 
-        break;
+    case WM_SIZE:
+        if (G_MainWindow->RendererDX->Device != nullptr && wParam != SIZE_MINIMIZED)
+        {
+            UINT Width = LOWORD(lParam);
+            UINT Height = HIWORD(lParam);
+
+            G_MainWindow->RendererDX->Width = Width;
+            G_MainWindow->RendererDX->Height = Height;
+            
+            // G_MainWindow->RendererDX->WaitForPreviousFrame();
+            // G_MainWindow->RendererDX->CleanupFrameBuffers();
+            // HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(0, Width, Height, G_MainWindow->RendererDX->FrameBufferFormat, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+            // assert(SUCCEEDED(result) && "Failed to resize swapchain.");
+            // G_MainWindow->RendererDX->CreateFrameBuffers();
+        }        
+        
+    // case WM_PAINT:
+    //     //G_MainWindow->RendererDX->Update();
+    //     //G_MainWindow->RendererDX->Render();
+    //
+    //     break;
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -120,7 +140,7 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
         szTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        static_cast<int>(DefaultWidth), static_cast<int>(DefaultHeight),
+        static_cast<int>(DefaultWidth * DpiScaling), static_cast<int>(DefaultHeight * DpiScaling),
         nullptr,
         nullptr,
         hInstance,
@@ -141,35 +161,31 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
     return bResult;
 }
 
-void MainWindow::InitImgui()
+bool MainWindow::InitImgui()
 {
     IMGUI_CHECKVERSION();
+    
+    ImGui_ImplWin32_EnableDpiAwareness();
+    DpiScaling = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
+    
     //Imgui_Context = ImGui::CreateContext();
     ImGui::CreateContext();
-    Imgui_Io = &ImGui::GetIO();
-    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-}
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-int MainWindow::Run()
-{
-    // Load the scene.
-    Scene->LoadExampleCube();
-
-    RendererDX->Setup();
-
-    IMGUI_CHECKVERSION();
-    //Imgui_Context = ImGui::CreateContext();
-    ImGui::CreateContext();
-    Imgui_Io = &ImGui::GetIO();
-    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    Imgui_Io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
+    io.FontGlobalScale = DpiScaling * ImguiUIScaling;
+    ImGui::StyleColorsDark();
+    
+    // Setup scaling
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(DpiScaling * ImguiUIScaling);
+    
     // Setup Platform/Renderer backends
     ImGui_ImplDX12_InitInfo init_info = {};
     init_info.Device = RendererDX.get()->Device.Get();
     init_info.CommandQueue = RendererDX.get()->CmdQueue.Get();
-    init_info.NumFramesInFlight = RendererDX.get()->FrameBufferCount;
+    init_info.NumFramesInFlight = 2;
     init_info.RTVFormat = RendererDX.get()->FrameBufferFormat; 
     init_info.SrvDescriptorHeap = RendererDX.get()->SrvBufferHeap.Get();
 
@@ -182,7 +198,16 @@ int MainWindow::Run()
         PostQuitMessage(1);
         return false;
     }
-    
+    return true;
+}
+
+int MainWindow::Run()
+{
+    // Load the scene.
+    Scene->LoadExampleCube();
+    RendererDX->Setup();
+
+    if (!InitImgui()) { return 1;}
     
     // Show, the window hidden by default.
     ShowWindow(hWnd, SW_SHOW);

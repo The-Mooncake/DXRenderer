@@ -39,7 +39,7 @@ public:
     bool SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight);
 
 private:
-    void InitImgui();
+    bool InitImgui();
 
 public:
     // App Global Classes, can be accessed through G_MainWindow
@@ -55,6 +55,10 @@ private:
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
+
+    // UI General
+    float DpiScaling = 1.0f;
+    float ImguiUIScaling = 1.5f;
 
     // Timing
     double Time = 0.0;
