@@ -188,7 +188,7 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     
     // SWAP CHAIN WAS SCALING BACK BUFFERS TO FIT WINDOW SIZE - CAUSING IMGUI TO NOT LINE UP.
-    //SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
+    SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
     if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
