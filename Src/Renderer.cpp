@@ -486,6 +486,8 @@ bool Renderer::CreateFrameBuffers()
         // Offset Buffer Handle
         BufferHandle.ptr += RtvHeapOffsetSize;
     }
+
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
     return true;
 }
 
@@ -493,6 +495,29 @@ void Renderer::CleanupFrameBuffers()
 {
     WaitForPreviousFrame();
     FrameBuffers.clear();
+}
+
+void Renderer::ResizeFrameBuffers(int InWidth, int InHeight)
+{
+    G_MainWindow->RendererDX->WaitForPreviousFrame();
+            
+    G_MainWindow->RendererDX->AspectRatio = static_cast<float>(InWidth) / static_cast<float>(InHeight);
+    G_MainWindow->RendererDX->Width = InWidth;
+    G_MainWindow->RendererDX->Height = InHeight;
+            
+    G_MainWindow->RendererDX->Viewport.Height = InHeight;
+    G_MainWindow->RendererDX->Viewport.Width = InWidth;
+            
+    // TODO Queue this change into the normal rendering pass,
+    // doing it here can cause rendering resources to become invalid.
+    DXGI_SWAP_CHAIN_DESC desc = {};
+    G_MainWindow->RendererDX->SwapChain->GetDesc(&desc);
+
+    // TODO Also resize the depth/stencil buffer.
+    G_MainWindow->RendererDX->CleanupFrameBuffers();
+    HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
+    assert(SUCCEEDED(result) && "Failed to resize swapchain.");
+    G_MainWindow->RendererDX->CreateFrameBuffers();
 }
 
 void Renderer::WaitForPreviousFrame()

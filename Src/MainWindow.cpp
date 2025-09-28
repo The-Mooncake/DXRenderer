@@ -70,39 +70,11 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     case WM_SIZE:
         if (G_MainWindow->RendererDX->Device != nullptr && wParam != SIZE_MINIMIZED)
         {
-            // UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
-            // UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
-            //
-            // std::wstring Title = _T("Win D3D Renderer - Mooncake | ");
-            // Title.append(std::to_wstring(Width));
-            // Title.append(_T("x"));
-            // Title.append(std::to_wstring(Height));
-            //
-            // SetWindowText(hWnd, Title.c_str());
-            //
-            // G_MainWindow->RendererDX->WaitForPreviousFrame();
-            //
-            // G_MainWindow->RendererDX->AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
-            // G_MainWindow->RendererDX->Width = Width;
-            // G_MainWindow->RendererDX->Height = Height;
-            //
-            // G_MainWindow->RendererDX->Viewport.Height = Height;
-            // G_MainWindow->RendererDX->Viewport.Width = Width;
-            //
-            // DXGI_SWAP_CHAIN_DESC desc = {};
-            // G_MainWindow->RendererDX->SwapChain->GetDesc(&desc);
-            //
-            // G_MainWindow->RendererDX->CleanupFrameBuffers();
-            // HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
-            // assert(SUCCEEDED(result) && "Failed to resize swapchain.");
-            // G_MainWindow->RendererDX->CreateFrameBuffers();
+            UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
+            UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
+            //G_MainWindow->RendererDX->ResizeFrameBuffers(Width, Height);
+            break;
         }        
-        
-    // case WM_PAINT:
-    //     //G_MainWindow->RendererDX->Update();
-    //     //G_MainWindow->RendererDX->Render();
-    //
-    //     break;
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);

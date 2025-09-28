@@ -31,9 +31,10 @@ public:
     // Rendering Setup
     bool Setup();
     
-    // Create/Clean RTs for the frame buffers
+    // Create/Clean/Resize RTs for the frame buffers
     bool CreateFrameBuffers();
     void CleanupFrameBuffers();
+    void ResizeFrameBuffers(int InWidth, int InHeight);
     
     // Main render loop.
     void Update();
