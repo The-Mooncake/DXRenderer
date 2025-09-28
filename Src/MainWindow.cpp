@@ -32,8 +32,6 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
     G_MainWindow = this;
     hInstance = InHInstance;
 
-    //InitImgui();
-    
     Scene = std::make_unique<USDScene>();
     RendererDX = std::make_unique<Renderer>();
 }
@@ -72,15 +70,30 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     case WM_SIZE:
         if (G_MainWindow->RendererDX->Device != nullptr && wParam != SIZE_MINIMIZED)
         {
-            UINT Width = LOWORD(lParam);
-            UINT Height = HIWORD(lParam);
-
-            G_MainWindow->RendererDX->Width = Width;
-            G_MainWindow->RendererDX->Height = Height;
-            
+            // UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
+            // UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
+            //
+            // std::wstring Title = _T("Win D3D Renderer - Mooncake | ");
+            // Title.append(std::to_wstring(Width));
+            // Title.append(_T("x"));
+            // Title.append(std::to_wstring(Height));
+            //
+            // SetWindowText(hWnd, Title.c_str());
+            //
             // G_MainWindow->RendererDX->WaitForPreviousFrame();
+            //
+            // G_MainWindow->RendererDX->AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
+            // G_MainWindow->RendererDX->Width = Width;
+            // G_MainWindow->RendererDX->Height = Height;
+            //
+            // G_MainWindow->RendererDX->Viewport.Height = Height;
+            // G_MainWindow->RendererDX->Viewport.Width = Width;
+            //
+            // DXGI_SWAP_CHAIN_DESC desc = {};
+            // G_MainWindow->RendererDX->SwapChain->GetDesc(&desc);
+            //
             // G_MainWindow->RendererDX->CleanupFrameBuffers();
-            // HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(0, Width, Height, G_MainWindow->RendererDX->FrameBufferFormat, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+            // HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
             // assert(SUCCEEDED(result) && "Failed to resize swapchain.");
             // G_MainWindow->RendererDX->CreateFrameBuffers();
         }        
@@ -100,7 +113,7 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     return 0;
 }
 
-bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight)
+bool MainWindow::SetupWindow()
 {
     bool bResult = false;
 
@@ -132,6 +145,12 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
 
         return bResult;
     }
+
+    // Adjust the windows window to be the correct size for the framebuffer resolution.
+    RECT WindowRect{0, 0, static_cast<long>(RendererDX->Width), static_cast<long>(RendererDX->Height)};
+    AdjustWindowRect(&WindowRect, WS_OVERLAPPEDWINDOW, FALSE);
+    UINT AdjustedWidth = static_cast<UINT>(WindowRect.right - WindowRect.left);
+    UINT AdjustedHeight = static_cast<UINT>(WindowRect.bottom - WindowRect.top);
     
     // Create the base window
     hWnd = CreateWindowEx(
@@ -140,7 +159,7 @@ bool MainWindow::SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight
         szTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        static_cast<int>(DefaultWidth * DpiScaling), static_cast<int>(DefaultHeight * DpiScaling),
+        static_cast<int>(AdjustedWidth * DpiScaling), static_cast<int>(AdjustedHeight * DpiScaling),
         nullptr,
         nullptr,
         hInstance,
@@ -168,36 +187,40 @@ bool MainWindow::InitImgui()
     ImGui_ImplWin32_EnableDpiAwareness();
     DpiScaling = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
     
-    //Imgui_Context = ImGui::CreateContext();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    io.FontGlobalScale = DpiScaling * ImguiUIScaling;
     ImGui::StyleColorsDark();
     
     // Setup scaling
     ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(DpiScaling * ImguiUIScaling);
+    style.ScaleAllSizes(DpiScaling * ImguiUIScaling); // Only for scaling ui not window mappings.
     
     // Setup Platform/Renderer backends
     ImGui_ImplDX12_InitInfo init_info = {};
     init_info.Device = RendererDX.get()->Device.Get();
     init_info.CommandQueue = RendererDX.get()->CmdQueue.Get();
-    init_info.NumFramesInFlight = 2;
+    init_info.NumFramesInFlight = 1;
     init_info.RTVFormat = RendererDX.get()->FrameBufferFormat; 
     init_info.SrvDescriptorHeap = RendererDX.get()->SrvBufferHeap.Get();
 
     init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return ImguiHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
     init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return ImguiHeapAlloc.Free(cpu_handle, gpu_handle); };
-    ImGui_ImplWin32_Init(hWnd);
-    if (!ImGui_ImplDX12_Init(&init_info))
+    if (!ImGui_ImplWin32_Init(hWnd))
     {
-        MessageBoxW(nullptr, L"Failed to Initialise Imgui DX12!.", L"Error", MB_OK);
+        MessageBoxW(nullptr, L"Failed to initialise ImGui Win32!", L"Error", MB_OK);
         PostQuitMessage(1);
         return false;
     }
+    if (!ImGui_ImplDX12_Init(&init_info))
+    {
+        MessageBoxW(nullptr, L"Failed to Initialise ImGui DX12!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return false;
+    }
+    
     return true;
 }
 

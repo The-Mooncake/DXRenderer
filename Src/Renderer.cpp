@@ -50,7 +50,7 @@ bool Renderer::Setup()
     nvtx3::scoped_range r{ "Setup Renderer" };
 
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
-    if (!G_MainWindow->SetupWindow(Width, Height))  { return false; }
+    if (!G_MainWindow->SetupWindow())               { return false; }
     if (!SetupSwapChain())                          { return false; }
     if (!SetupMeshRootSignature())                  { return false; }
     if (!SetupImguiRendering())                     { return false; }
@@ -186,6 +186,9 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     SwapChainDesc.SampleDesc.Count = 1;      //multisampling setting
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    
+    // SWAP CHAIN WAS SCALING BACK BUFFERS TO FIT WINDOW SIZE - CAUSING IMGUI TO NOT LINE UP.
+    //SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
     if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
@@ -198,6 +201,10 @@ bool Renderer::SetupSwapChain()
     }
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
+
+    // Set the background colour to be red to indicate an error.
+    const DXGI_RGBA ErrorColor{1.0f, 0.0f, 0.0f, 1.0f};
+    SwapChain->SetBackgroundColor(&ErrorColor);
 
     Factory->MakeWindowAssociation(G_MainWindow->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
     SwapChain->ResizeBuffers(FrameBufferCount, Width, Height, FrameBufferFormat, 0);
@@ -214,9 +221,6 @@ bool Renderer::SetupSwapChain()
         PostQuitMessage(1);
         return bResult;
     }
-    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    FrameBufferHeap->SetName(L"Frame Buffer Heap");
 
     if (bResult = CreateFrameBuffers(); !bResult) { return bResult; } 
     
@@ -459,7 +463,8 @@ bool Renderer::CreateFrameBuffers()
 
     D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
     RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
+    FrameBufferHeap->SetName(L"Frame Buffer Heap");
+    
     D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
     RtvDesc.Format = FrameBufferFormat;
     RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;

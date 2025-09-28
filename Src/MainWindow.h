@@ -36,7 +36,7 @@ public:
     HWND& GetHWND() { return hWnd; }
 
     const double& GetTime() const { return Time; } 
-    bool SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight);
+    bool SetupWindow();
 
 private:
     bool InitImgui();
@@ -58,7 +58,7 @@ private:
 
     // UI General
     float DpiScaling = 1.0f;
-    float ImguiUIScaling = 1.5f;
+    float ImguiUIScaling = 1.0f;
 
     // Timing
     double Time = 0.0;

@@ -3,23 +3,18 @@
 
 // Common
 #include <wrl/client.h>
-#include <stdlib.h>
 #include <vector>
 
 #include "pch.h"
 #include "StaticMeshPipeline.h"
 
 // DX
-#include <d3dcommon.h>
 #include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <memory>
 
-#include "ImGuiDescHeap.h"
-
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
-
 
 struct Vertex
 {
@@ -73,8 +68,8 @@ public:
     bool VSyncEnabled = true;
     
     // Window and Viewport Properties
-    UINT Width = 2560;
-    UINT Height = 1440;
+    UINT Width = 800;
+    UINT Height = 600;
     float NearPlane = 0.01f; // Can't be zero for depth buffer.
     float FarPlane = 100.0f;
 
@@ -127,7 +122,6 @@ public:
     CB_WVP WVP; // World View Projection buffer.
 
     // Imgui
-    //static ImguiDescHeapAllocator ImguiHeapAlloc;
     ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
 
     
