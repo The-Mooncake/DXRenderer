@@ -34,7 +34,9 @@ public:
     // Create/Clean/Resize RTs for the frame buffers
     bool CreateFrameBuffers();
     void CleanupFrameBuffers();
-    void ResizeFrameBuffers(int InWidth, int InHeight);
+    bool CreateDepthStencilResource();
+    void CleanupDepthStencilBuffer();
+    void ResizeFrameBuffers();
     
     // Main render loop.
     void Update();
@@ -45,6 +47,7 @@ public:
 
     // Utilities
     void SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) const;
+    void QueueResize(UINT InWidth, UINT InHeight);
 
 private:
     // Setup Helpers
@@ -79,9 +82,6 @@ public:
 
     float MaxDepth = 1.0f;
     
-    // Render State
-    bool bDXReady = false;
-
     // DX resources.
     ComPtr<ID3D12Debug> DebugController;
     ComPtr<IDXGIDebug1> DebugDXGI;
@@ -125,5 +125,14 @@ public:
     // Imgui
     ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
 
+private:
+
+    // Render State
+    bool bDXReady = false;
+    bool bResizeQueued = false;
+
+    // Pending Resize Widths
+    int NewResizeWidth = 0;
+    int NewResizeHeight = 0;
     
 };

@@ -238,56 +238,8 @@ bool Renderer::SetupSwapChain()
     }
     DepthBufferHeap->SetName(L"Depth/Stencil Resource Heap");
 
-    // Depth Heap Resource
-    D3D12_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc = {};
-    DepthStencilDesc.Format = DepthSampleFormat;
-    DepthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    DepthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
-    DepthStencilDesc.Texture2D.MipSlice = 0;
+    if (!CreateDepthStencilResource()) { return false;}
 
-    D3D12_CLEAR_VALUE DepthOptimizedClearValue = {};
-    DepthOptimizedClearValue.Format = DepthSampleFormat;
-    DepthOptimizedClearValue.DepthStencil.Depth = MaxDepth;
-    DepthOptimizedClearValue.DepthStencil.Stencil = 0;
-
-    D3D12_RESOURCE_DESC DepthResourceDesc = {};
-    DepthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    DepthResourceDesc.Alignment = 0;
-    DepthResourceDesc.Width = Width;
-    DepthResourceDesc.Height = Height;
-    DepthResourceDesc.DepthOrArraySize = 1;
-    DepthResourceDesc.MipLevels = 1;
-    DepthResourceDesc.Format = DepthSampleFormat;
-    DepthResourceDesc.SampleDesc.Count = 1;
-    DepthResourceDesc.SampleDesc.Quality = 0;
-    DepthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    DepthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-    D3D12_HEAP_PROPERTIES DepthHeapProps;
-    DepthHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-    DepthHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    DepthHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    DepthHeapProps.CreationNodeMask = 0;
-    DepthHeapProps.VisibleNodeMask = 0;
-
-    HR = Device->CreateCommittedResource(
-    &DepthHeapProps,
-    D3D12_HEAP_FLAG_NONE,
-    &DepthResourceDesc,
-    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-    &DepthOptimizedClearValue,
-    IID_PPV_ARGS(&DepthBuffer)
-    );
-    if (FAILED(HR))
-    {
-        MessageBoxW(nullptr, L"Failed to create depth/stencil committed resource!", L"Error", MB_OK);
-        PostQuitMessage(1);
-        return bResult;
-    }
-    DepthBuffer->SetName(L"Depth Buffer Resource");
-
-    Device->CreateDepthStencilView(DepthBuffer.Get(), &DepthStencilDesc, DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    
     bResult = true;
     return bResult;
 }
@@ -493,31 +445,102 @@ bool Renderer::CreateFrameBuffers()
 
 void Renderer::CleanupFrameBuffers()
 {
-    WaitForPreviousFrame();
     FrameBuffers.clear();
+    WaitForPreviousFrame();
 }
 
-void Renderer::ResizeFrameBuffers(int InWidth, int InHeight)
+bool Renderer::CreateDepthStencilResource()
 {
-    G_MainWindow->RendererDX->WaitForPreviousFrame();
-            
-    G_MainWindow->RendererDX->AspectRatio = static_cast<float>(InWidth) / static_cast<float>(InHeight);
-    G_MainWindow->RendererDX->Width = InWidth;
-    G_MainWindow->RendererDX->Height = InHeight;
-            
-    G_MainWindow->RendererDX->Viewport.Height = InHeight;
-    G_MainWindow->RendererDX->Viewport.Width = InWidth;
-            
-    // TODO Queue this change into the normal rendering pass,
-    // doing it here can cause rendering resources to become invalid.
-    DXGI_SWAP_CHAIN_DESC desc = {};
-    G_MainWindow->RendererDX->SwapChain->GetDesc(&desc);
+    HRESULT HR;
+    
+    // Depth Heap Resource
+    D3D12_CLEAR_VALUE DepthOptimizedClearValue;
+    DepthOptimizedClearValue.Format = DepthSampleFormat;
+    DepthOptimizedClearValue.DepthStencil.Depth = MaxDepth;
+    DepthOptimizedClearValue.DepthStencil.Stencil = 0;
 
-    // TODO Also resize the depth/stencil buffer.
-    G_MainWindow->RendererDX->CleanupFrameBuffers();
-    HRESULT result = G_MainWindow->RendererDX->SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
+    D3D12_RESOURCE_DESC DepthResourceDesc;
+    DepthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    DepthResourceDesc.Alignment = 0;
+    DepthResourceDesc.Width = Width;
+    DepthResourceDesc.Height = Height;
+    DepthResourceDesc.DepthOrArraySize = 1;
+    DepthResourceDesc.MipLevels = 1;
+    DepthResourceDesc.Format = DepthSampleFormat;
+    DepthResourceDesc.SampleDesc.Count = 1;
+    DepthResourceDesc.SampleDesc.Quality = 0;
+    DepthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    DepthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_HEAP_PROPERTIES DepthHeapProps;
+    DepthHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    DepthHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    DepthHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    DepthHeapProps.CreationNodeMask = 0;
+    DepthHeapProps.VisibleNodeMask = 0;
+
+    HR = Device->CreateCommittedResource(
+    &DepthHeapProps,
+    D3D12_HEAP_FLAG_NONE,
+    &DepthResourceDesc,
+    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+    &DepthOptimizedClearValue,
+    IID_PPV_ARGS(&DepthBuffer)
+    );
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to create depth/stencil committed resource!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return false;
+    }
+    DepthBuffer->SetName(L"Depth Buffer Resource");
+
+    // Update the depth stencil view.
+    D3D12_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc;
+    DepthStencilDesc.Format = DepthSampleFormat;
+    DepthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    DepthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+    DepthStencilDesc.Texture2D.MipSlice = 0;
+    Device->CreateDepthStencilView(DepthBuffer.Get(), &DepthStencilDesc, DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    
+    return true;
+}
+
+void Renderer::CleanupDepthStencilBuffer()
+{
+    if (DepthBuffer.Get())
+    {   
+        DepthBuffer->Release();
+    }
+    WaitForPreviousFrame();
+}
+
+void Renderer::ResizeFrameBuffers()
+{
+    nvtx3::scoped_range r{ "ResizeFrameBuffers" };
+    if (!bDXReady) {return; }
+    
+    WaitForPreviousFrame();
+    AspectRatio = static_cast<float>(NewResizeWidth) / static_cast<float>(NewResizeHeight);
+    Width = NewResizeWidth;
+    Height = NewResizeHeight;
+            
+    Viewport.Width = NewResizeWidth;
+    Viewport.Height = NewResizeHeight;
+            
+    DXGI_SWAP_CHAIN_DESC desc = {};
+    SwapChain->GetDesc(&desc);
+
+    CleanupFrameBuffers();
+    //CleanupDepthStencilBuffer(); Errors if we do this, seems to work without needing to clear we just recreate on top.
+
+    HRESULT result = SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
     assert(SUCCEEDED(result) && "Failed to resize swapchain.");
-    G_MainWindow->RendererDX->CreateFrameBuffers();
+
+    CreateFrameBuffers();
+    CreateDepthStencilResource();
+
+    bResizeQueued = false;
 }
 
 void Renderer::WaitForPreviousFrame()
@@ -546,6 +569,13 @@ void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) con
     D3D12_CPU_DESCRIPTOR_HANDLE DepthHandle(DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
     
     InCmdList->OMSetRenderTargets(1, &RtvHandle, false, &DepthHandle);
+}
+
+void Renderer::QueueResize(UINT InWidth, UINT InHeight)
+{
+    bResizeQueued = true;
+    NewResizeWidth = InWidth;
+    NewResizeHeight = InHeight;
 }
 
 void Renderer::Update()
@@ -580,6 +610,8 @@ void Renderer::Render()
     nvtx3::scoped_range r("Render Tick");
 
     HRESULT HR;
+
+    if (bResizeQueued) { ResizeFrameBuffers(); }
     
     // Build and execute the command list.
     Cmds.clear();

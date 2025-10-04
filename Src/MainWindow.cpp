@@ -72,7 +72,7 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
         {
             UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
             UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
-            //G_MainWindow->RendererDX->ResizeFrameBuffers(Width, Height);
+            G_MainWindow->RendererDX->QueueResize(Width, Height);
             break;
         }        
 
