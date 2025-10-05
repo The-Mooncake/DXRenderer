@@ -49,6 +49,8 @@ bool Renderer::Setup()
 {
     nvtx3::scoped_range r{ "Setup Renderer" };
 
+    CalculateAspectRatio();
+    
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
     if (!G_MainWindow->SetupWindow())               { return false; }
     if (!SetupSwapChain())                          { return false; }
@@ -205,7 +207,7 @@ bool Renderer::SetupSwapChain()
     // Set the background colour to be red to indicate an error.
     const DXGI_RGBA ErrorColor{1.0f, 0.0f, 0.0f, 1.0f};
     SwapChain->SetBackgroundColor(&ErrorColor);
-
+    
     Factory->MakeWindowAssociation(G_MainWindow->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
     SwapChain->ResizeBuffers(FrameBufferCount, Width, Height, FrameBufferFormat, 0);
 
@@ -521,13 +523,14 @@ void Renderer::ResizeFrameBuffers()
     if (!bDXReady) {return; }
     
     WaitForPreviousFrame();
-    AspectRatio = static_cast<float>(NewResizeWidth) / static_cast<float>(NewResizeHeight);
     Width = NewResizeWidth;
     Height = NewResizeHeight;
-            
-    Viewport.Width = NewResizeWidth;
-    Viewport.Height = NewResizeHeight;
-            
+    CalculateAspectRatio();
+
+    // Adjust viewport for DpiScaling.
+    Viewport.Width = NewResizeWidth / G_MainWindow->GetDpiScale();
+    Viewport.Height = NewResizeHeight / G_MainWindow->GetDpiScale();
+
     DXGI_SWAP_CHAIN_DESC desc = {};
     SwapChain->GetDesc(&desc);
 
@@ -600,6 +603,12 @@ void Renderer::Update()
     // Start the Dear ImGui frame
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
+
+    // Can't use frame buffer scaling to change drawing of imgui :/
+    // ImGui::GetIO().DisplayFramebufferScale = ImVec2(Width / io.DisplaySize.x, Height / io.DisplaySize.y);
+    // ImGuiIO& io = ImGui::GetIO();
+    // io.DisplayFramebufferScale = ImVec2(0.7f, 2.7f);
+
     ImGui::NewFrame();
     ImGui::ShowDemoWindow(); // Show demo window! :)
     

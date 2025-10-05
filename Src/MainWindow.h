@@ -38,6 +38,8 @@ public:
     const double& GetTime() const { return Time; } 
     bool SetupWindow();
 
+    const float& GetDpiScale() const { return DpiScaling; } 
+
 private:
     bool InitImgui();
 

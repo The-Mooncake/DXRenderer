@@ -63,6 +63,7 @@ private:
 
     //Utils
     bool SetupImguiRendering();
+    void CalculateAspectRatio() { AspectRatio = static_cast<float>(Width) / static_cast<float>(Height); };
 
 public:
     // Pipelines
@@ -78,8 +79,8 @@ public:
     float FarPlane = 100.0f;
 
     float FieldOfView = 45.0;
-    float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
-
+    float AspectRatio = 1.0f; // Gets calculated on init.
+ 
     float MaxDepth = 1.0f;
     
     // DX resources.
