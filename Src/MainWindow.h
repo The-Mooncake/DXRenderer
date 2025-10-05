@@ -15,7 +15,12 @@
 #include <dxgi1_6.h>
 #include <memory>
 
+#include "ImGuiDescHeap.h"
+
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
+
+inline ImguiDescHeapAllocator ImguiHeapAlloc;
+
 
 class MainWindow
 {
@@ -31,18 +36,31 @@ public:
     HWND& GetHWND() { return hWnd; }
 
     const double& GetTime() const { return Time; } 
-    bool SetupWindow(const UINT& DefaultWidth, const UINT& DefaultHeight);
+    bool SetupWindow();
+
+    const float& GetDpiScale() const { return DpiScaling; } 
+
+private:
+    bool InitImgui();
 
 public:
     // App Global Classes, can be accessed through G_MainWindow
     std::unique_ptr<class Renderer> RendererDX;
     std::unique_ptr<class USDScene> Scene;
+
+    // Imgui Globals
+    struct ImguiContext* Imgui_Context;
+    struct ImGuiIO* Imgui_Io;
     
 private:
 
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
+
+    // UI General
+    float DpiScaling = 1.0f;
+    float ImguiUIScaling = 1.0f;
 
     // Timing
     double Time = 0.0;

@@ -6,6 +6,7 @@ set(PROJECT_NAME DXRenderer)
 set(Header_Files
     "MainWindow.h"
     "pch.h"
+    "ImGuiDescHeap.h"
     "Renderer.h"
     "USDScene.h"
     "RenderMesh.h"
@@ -15,6 +16,7 @@ source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     "DXRenderer.cpp"
+    "ImGuiDescHeap.cpp"
     "Renderer.cpp"
     "MainWindow.cpp"
     "USDScene.cpp"
@@ -160,6 +162,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
 # NVTX
 target_link_libraries(${PROJECT_NAME} PRIVATE nvtx3-cpp)
 
+# IMGUI
+find_package(imgui CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE imgui::imgui)
+  
 # USD
 find_package(pxr CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE

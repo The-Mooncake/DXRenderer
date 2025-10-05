@@ -9,6 +9,14 @@
 
 #include <nvtx3/nvtx3.hpp>
 
+// Imgui
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+#include "ImGuiDescHeap.h"
+
+
+
 // Define SDK version.
 // Requires the Microsoft.Direct3D.D3D12 package (from nuget), version is the middle number of the version: '1.615.1'
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 615; } 
@@ -41,13 +49,16 @@ bool Renderer::Setup()
 {
     nvtx3::scoped_range r{ "Setup Renderer" };
 
+    CalculateAspectRatio();
+    
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
-    if (!G_MainWindow->SetupWindow(Width, Height))  { return false; }
+    if (!G_MainWindow->SetupWindow())               { return false; }
     if (!SetupSwapChain())                          { return false; }
     if (!SetupMeshRootSignature())                  { return false; }
+    if (!SetupImguiRendering())                     { return false; }
     
     SMPipe = std::make_unique<StaticMeshPipeline>(this);
-       
+
     // DX Setup correctly.
     bDXReady = true;
     return bDXReady;
@@ -177,6 +188,9 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     SwapChainDesc.SampleDesc.Count = 1;      //multisampling setting
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    
+    // SWAP CHAIN WAS SCALING BACK BUFFERS TO FIT WINDOW SIZE - CAUSING IMGUI TO NOT LINE UP.
+    SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
     if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
@@ -190,6 +204,10 @@ bool Renderer::SetupSwapChain()
     BaseSwapChain.As(&SwapChain); // To SwapChain4.
     CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
 
+    // Set the background colour to be red to indicate an error.
+    const DXGI_RGBA ErrorColor{1.0f, 0.0f, 0.0f, 1.0f};
+    SwapChain->SetBackgroundColor(&ErrorColor);
+    
     Factory->MakeWindowAssociation(G_MainWindow->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
     SwapChain->ResizeBuffers(FrameBufferCount, Width, Height, FrameBufferFormat, 0);
 
@@ -205,35 +223,9 @@ bool Renderer::SetupSwapChain()
         PostQuitMessage(1);
         return bResult;
     }
-    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    FrameBufferHeap->SetName(L"Frame Buffer Heap");
-
-    // Create Buffer Resources.
-    D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
-    RtvDesc.Format = FrameBufferFormat;
-    RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-    // Swap chain rtv setup.
-    FrameBuffers.resize(FrameBufferCount);
-    for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
-    {
-        ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
-        HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
-        if (FAILED(HR))
-        {
-            MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
-            printf("Failed to get buffer at idx: %d", Idx);
-            PostQuitMessage(1);
-            return  bResult;
-        }
-        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
-
-        // Offset Buffer Handle
-        BufferHandle.ptr += RtvHeapOffsetSize;
-    }
-
+    if (bResult = CreateFrameBuffers(); !bResult) { return bResult; } 
+    
     // Create Depth/Stencil Buffer
     D3D12_DESCRIPTOR_HEAP_DESC DepthHeapDesc = {};
     DepthHeapDesc.NumDescriptors = 1;
@@ -248,56 +240,8 @@ bool Renderer::SetupSwapChain()
     }
     DepthBufferHeap->SetName(L"Depth/Stencil Resource Heap");
 
-    // Depth Heap Resource
-    D3D12_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc = {};
-    DepthStencilDesc.Format = DepthSampleFormat;
-    DepthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    DepthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
-    DepthStencilDesc.Texture2D.MipSlice = 0;
+    if (!CreateDepthStencilResource()) { return false;}
 
-    D3D12_CLEAR_VALUE DepthOptimizedClearValue = {};
-    DepthOptimizedClearValue.Format = DepthSampleFormat;
-    DepthOptimizedClearValue.DepthStencil.Depth = MaxDepth;
-    DepthOptimizedClearValue.DepthStencil.Stencil = 0;
-
-    D3D12_RESOURCE_DESC DepthResourceDesc = {};
-    DepthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    DepthResourceDesc.Alignment = 0;
-    DepthResourceDesc.Width = Width;
-    DepthResourceDesc.Height = Height;
-    DepthResourceDesc.DepthOrArraySize = 1;
-    DepthResourceDesc.MipLevels = 1;
-    DepthResourceDesc.Format = DepthSampleFormat;
-    DepthResourceDesc.SampleDesc.Count = 1;
-    DepthResourceDesc.SampleDesc.Quality = 0;
-    DepthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    DepthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-    D3D12_HEAP_PROPERTIES DepthHeapProps;
-    DepthHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-    DepthHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    DepthHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    DepthHeapProps.CreationNodeMask = 0;
-    DepthHeapProps.VisibleNodeMask = 0;
-
-    HR = Device->CreateCommittedResource(
-    &DepthHeapProps,
-    D3D12_HEAP_FLAG_NONE,
-    &DepthResourceDesc,
-    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-    &DepthOptimizedClearValue,
-    IID_PPV_ARGS(&DepthBuffer)
-    );
-    if (FAILED(HR))
-    {
-        MessageBoxW(nullptr, L"Failed to create depth/stencil committed resource!", L"Error", MB_OK);
-        PostQuitMessage(1);
-        return bResult;
-    }
-    DepthBuffer->SetName(L"Depth Buffer Resource");
-
-    Device->CreateDepthStencilView(DepthBuffer.Get(), &DepthStencilDesc, DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
-    
     bResult = true;
     return bResult;
 }
@@ -427,6 +371,13 @@ void Renderer::EndFrame()
     }
     CmdListEndFrame->SetName(L"CmdList-EndFrame");
 
+    // Imgui Rendering
+    SetBackBufferOM(CmdListEndFrame); // Imgui requires the output merger.
+    CmdListEndFrame->SetDescriptorHeaps(1, SrvBufferHeap.GetAddressOf());
+    ImGui::EndFrame();
+    ImGui::Render();
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
+
     // Indicate that the back buffer will be used to present.
     D3D12_RESOURCE_BARRIER PresentBarrier;
     PresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -436,7 +387,8 @@ void Renderer::EndFrame()
     PresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     PresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     CmdListEndFrame->ResourceBarrier(1, &PresentBarrier);
-
+    
+    // Finish frame.
     CmdListEndFrame->EndEvent();
     HR = CmdListEndFrame->Close();
     if (FAILED(HR))
@@ -444,6 +396,154 @@ void Renderer::EndFrame()
         MessageBoxW(nullptr, L"EndFrame: Failed to close 'CmdListEndFrame'!", L"Error", MB_OK);
         PostQuitMessage(1);
     }
+}
+
+bool Renderer::SetupImguiRendering()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.NumDescriptors = 64;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
+        return false;
+    ImguiHeapAlloc.Create(Device.Get(), SrvBufferHeap.Get());
+    SrvBufferHeap->SetName(L"Imgui-SrvBufferHeap");
+    return true;
+}
+
+bool Renderer::CreateFrameBuffers()
+{
+    HRESULT HR;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle(FrameBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    RtvHeapOffsetSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    FrameBufferHeap->SetName(L"Frame Buffer Heap");
+    
+    D3D12_RENDER_TARGET_VIEW_DESC RtvDesc{};
+    RtvDesc.Format = FrameBufferFormat;
+    RtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    
+    FrameBuffers.resize(FrameBufferCount);
+    for (UINT Idx = 0; Idx < FrameBufferCount; Idx++)
+    {
+        ComPtr<ID3D12Resource>& Buffer = FrameBuffers.at(Idx);
+        HR = SwapChain->GetBuffer(Idx, IID_PPV_ARGS(&Buffer));
+        if (FAILED(HR))
+        {
+            MessageBoxW(nullptr, L"Failed to get buffer!", L"Error", MB_OK);
+            printf("Failed to get buffer at idx: %d", Idx);
+            PostQuitMessage(1);
+            return false;
+        }
+        Device->CreateRenderTargetView(Buffer.Get(), &RtvDesc, BufferHandle); // Buffers are null ptr after creating RTs, not normal...
+
+        // Offset Buffer Handle
+        BufferHandle.ptr += RtvHeapOffsetSize;
+    }
+
+    CurrentBackBuffer = SwapChain->GetCurrentBackBufferIndex();
+    return true;
+}
+
+void Renderer::CleanupFrameBuffers()
+{
+    FrameBuffers.clear();
+    WaitForPreviousFrame();
+}
+
+bool Renderer::CreateDepthStencilResource()
+{
+    HRESULT HR;
+    
+    // Depth Heap Resource
+    D3D12_CLEAR_VALUE DepthOptimizedClearValue;
+    DepthOptimizedClearValue.Format = DepthSampleFormat;
+    DepthOptimizedClearValue.DepthStencil.Depth = MaxDepth;
+    DepthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+    D3D12_RESOURCE_DESC DepthResourceDesc;
+    DepthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    DepthResourceDesc.Alignment = 0;
+    DepthResourceDesc.Width = Width;
+    DepthResourceDesc.Height = Height;
+    DepthResourceDesc.DepthOrArraySize = 1;
+    DepthResourceDesc.MipLevels = 1;
+    DepthResourceDesc.Format = DepthSampleFormat;
+    DepthResourceDesc.SampleDesc.Count = 1;
+    DepthResourceDesc.SampleDesc.Quality = 0;
+    DepthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    DepthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_HEAP_PROPERTIES DepthHeapProps;
+    DepthHeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    DepthHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    DepthHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    DepthHeapProps.CreationNodeMask = 0;
+    DepthHeapProps.VisibleNodeMask = 0;
+
+    HR = Device->CreateCommittedResource(
+    &DepthHeapProps,
+    D3D12_HEAP_FLAG_NONE,
+    &DepthResourceDesc,
+    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+    &DepthOptimizedClearValue,
+    IID_PPV_ARGS(&DepthBuffer)
+    );
+    if (FAILED(HR))
+    {
+        MessageBoxW(nullptr, L"Failed to create depth/stencil committed resource!", L"Error", MB_OK);
+        PostQuitMessage(1);
+        return false;
+    }
+    DepthBuffer->SetName(L"Depth Buffer Resource");
+
+    // Update the depth stencil view.
+    D3D12_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc;
+    DepthStencilDesc.Format = DepthSampleFormat;
+    DepthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    DepthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+    DepthStencilDesc.Texture2D.MipSlice = 0;
+    Device->CreateDepthStencilView(DepthBuffer.Get(), &DepthStencilDesc, DepthBufferHeap->GetCPUDescriptorHandleForHeapStart());
+    
+    return true;
+}
+
+void Renderer::CleanupDepthStencilBuffer()
+{
+    if (DepthBuffer.Get())
+    {   
+        DepthBuffer->Release();
+    }
+    WaitForPreviousFrame();
+}
+
+void Renderer::ResizeFrameBuffers()
+{
+    nvtx3::scoped_range r{ "ResizeFrameBuffers" };
+    if (!bDXReady) {return; }
+    
+    WaitForPreviousFrame();
+    Width = NewResizeWidth;
+    Height = NewResizeHeight;
+    CalculateAspectRatio();
+
+    // Adjust viewport for DpiScaling.
+    Viewport.Width = NewResizeWidth / G_MainWindow->GetDpiScale();
+    Viewport.Height = NewResizeHeight / G_MainWindow->GetDpiScale();
+
+    DXGI_SWAP_CHAIN_DESC desc = {};
+    SwapChain->GetDesc(&desc);
+
+    CleanupFrameBuffers();
+    //CleanupDepthStencilBuffer(); Errors if we do this, seems to work without needing to clear we just recreate on top.
+
+    HRESULT result = SwapChain->ResizeBuffers(desc.BufferCount, Width, Height, desc.BufferDesc.Format, desc.Flags);
+    assert(SUCCEEDED(result) && "Failed to resize swapchain.");
+
+    CreateFrameBuffers();
+    CreateDepthStencilResource();
+
+    bResizeQueued = false;
 }
 
 void Renderer::WaitForPreviousFrame()
@@ -474,6 +574,13 @@ void Renderer::SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) con
     InCmdList->OMSetRenderTargets(1, &RtvHandle, false, &DepthHandle);
 }
 
+void Renderer::QueueResize(UINT InWidth, UINT InHeight)
+{
+    bResizeQueued = true;
+    NewResizeWidth = InWidth;
+    NewResizeHeight = InHeight;
+}
+
 void Renderer::Update()
 {
     nvtx3::scoped_range r("Update Tick");
@@ -492,6 +599,19 @@ void Renderer::Update()
 
     // Update constant buffer.
     SMPipe->Update(WVP);
+    
+    // Start the Dear ImGui frame
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+
+    // Can't use frame buffer scaling to change drawing of imgui :/
+    // ImGui::GetIO().DisplayFramebufferScale = ImVec2(Width / io.DisplaySize.x, Height / io.DisplaySize.y);
+    // ImGuiIO& io = ImGui::GetIO();
+    // io.DisplayFramebufferScale = ImVec2(0.7f, 2.7f);
+
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow(); // Show demo window! :)
+    
 }
 
 void Renderer::Render()
@@ -499,10 +619,12 @@ void Renderer::Render()
     nvtx3::scoped_range r("Render Tick");
 
     HRESULT HR;
+
+    if (bResizeQueued) { ResizeFrameBuffers(); }
     
     // Build and execute the command list.
     Cmds.clear();
-    
+
     BeginFrame();
     Cmds.emplace_back(CmdListBeginFrame.Get());
 
@@ -510,7 +632,7 @@ void Renderer::Render()
 
     EndFrame();
     Cmds.emplace_back(CmdListEndFrame.Get());
-
+    
     CmdQueue->ExecuteCommandLists(static_cast<UINT>(Cmds.size()), Cmds.data());
 
     // Render to screen

@@ -2,7 +2,11 @@
   "dependencies": [
     "directx12-agility",
     "tbb",
-    "usd"
+    "usd",
+    {
+      "name" : "imgui",
+      "features" : ["dx12-binding", "win32-binding"]
+    }
   ],
   "overrides": [
     {

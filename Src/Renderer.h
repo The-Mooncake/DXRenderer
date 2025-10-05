@@ -3,19 +3,16 @@
 
 // Common
 #include <wrl/client.h>
-#include <stdlib.h>
 #include <vector>
 
 #include "pch.h"
 #include "StaticMeshPipeline.h"
 
 // DX
-#include <d3dcommon.h>
 #include <dxgidebug.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <memory>
-
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
 
@@ -30,10 +27,17 @@ class Renderer
 {
 public:
     ~Renderer();
-    
+
     // Rendering Setup
     bool Setup();
-
+    
+    // Create/Clean/Resize RTs for the frame buffers
+    bool CreateFrameBuffers();
+    void CleanupFrameBuffers();
+    bool CreateDepthStencilResource();
+    void CleanupDepthStencilBuffer();
+    void ResizeFrameBuffers();
+    
     // Main render loop.
     void Update();
     void Render();
@@ -43,6 +47,7 @@ public:
 
     // Utilities
     void SetBackBufferOM(ComPtr<ID3D12GraphicsCommandList>& InCmdList) const;
+    void QueueResize(UINT InWidth, UINT InHeight);
 
 private:
     // Setup Helpers
@@ -56,6 +61,9 @@ private:
     void MidFrame();
     void EndFrame();
 
+    //Utils
+    bool SetupImguiRendering();
+    void CalculateAspectRatio() { AspectRatio = static_cast<float>(Width) / static_cast<float>(Height); };
 
 public:
     // Pipelines
@@ -71,14 +79,10 @@ public:
     float FarPlane = 100.0f;
 
     float FieldOfView = 45.0;
-    float AspectRatio = static_cast<float>(Width) / static_cast<float>(Height);
-
+    float AspectRatio = 1.0f; // Gets calculated on init.
+ 
     float MaxDepth = 1.0f;
     
-    
-    // Render State
-    bool bDXReady = false;
-
     // DX resources.
     ComPtr<ID3D12Debug> DebugController;
     ComPtr<IDXGIDebug1> DebugDXGI;
@@ -119,4 +123,17 @@ public:
     // World Constants
     CB_WVP WVP; // World View Projection buffer.
 
+    // Imgui
+    ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
+
+private:
+
+    // Render State
+    bool bDXReady = false;
+    bool bResizeQueued = false;
+
+    // Pending Resize Widths
+    int NewResizeWidth = 0;
+    int NewResizeHeight = 0;
+    
 };
