@@ -15,6 +15,8 @@
 #include "imgui_impl_dx12.h"
 #include "ImGuiDescHeap.h"
 
+// UI
+#include "UIBase.h"
 
 
 // Define SDK version.
@@ -610,8 +612,9 @@ void Renderer::Update()
     // io.DisplayFramebufferScale = ImVec2(0.7f, 2.7f);
 
     ImGui::NewFrame();
-    ImGui::ShowDemoWindow(); // Show demo window! :)
-    
+    //ImGui::ShowDemoWindow(); // Show demo window! :)
+    UIBase::WindowMenuBar();
+    UIBase::ShowInfoOverlay();
 }
 
 void Renderer::Render()
