@@ -19,6 +19,7 @@ public:
     ~MainWindow();
 
     int Run();
+    void Tick();
     static LRESULT CALLBACK WinProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     HINSTANCE& GetHInstance() { return hInstance; }

@@ -30,6 +30,7 @@ public:
 
     // Rendering Setup
     bool Setup();
+    bool IsReady() const { return bDXReady; }
         
     // Main render loop.
     void Update();

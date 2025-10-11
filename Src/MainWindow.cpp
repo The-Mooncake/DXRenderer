@@ -72,8 +72,10 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
             const UINT Width = LOWORD(lParam);
             const UINT Height = HIWORD(lParam);
             G_MainWindow->RendererDX->QueueResize(Width, Height);
+            
+            G_MainWindow->Tick();
             break;
-        }        
+        }
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -151,6 +153,20 @@ bool MainWindow::SetupWindow()
     return bResult;
 }
 
+void MainWindow::Tick()
+{
+    nvtx3::scoped_range loop{ "Tick" };
+    
+    Time += TimeStep;
+
+    // Update the UI
+    UI->RenderUI();
+
+    // Render
+    RendererDX->Update();
+    RendererDX->Render();
+}
+
 int MainWindow::Run()
 {
     // Load the scene.
@@ -170,24 +186,18 @@ int MainWindow::Run()
     
     while (Msg.message != WM_QUIT)
     {
-        nvtx3::scoped_range loop{ "Tick" };
-
-        Time += TimeStep;
-
         bool bMsg = (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE) != 0);
         if (bMsg)
         {
+            nvtx3::scoped_range loop{ "Handle Windows Messages" };
+
             TranslateMessage(&Msg);
             DispatchMessage(&Msg);
         }
         else
         {
-            // Update the UI
-            UI->RenderUI();
-            
-            // Update renderer when no messages received...
-            RendererDX->Update();
-            RendererDX->Render();
+            // Tick when no messages received...
+            Tick();
         }
     }
 
