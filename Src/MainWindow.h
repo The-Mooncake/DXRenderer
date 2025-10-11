@@ -3,25 +3,13 @@
 // Common
 #include <windows.h>
 #include <wrl/client.h>
-#include <stdlib.h>
-#include <vector>
-
-#include "pch.h"
+#include <memory>
 
 // DX
 #include <d3dcommon.h>
 #include <dxgidebug.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <memory>
-
-#include "ImGuiDescHeap.h"
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
-
-// ImGui helper
-inline ImguiDescHeapAllocator ImguiHeapAlloc;
-
 
 class MainWindow
 {
@@ -39,30 +27,16 @@ public:
     const double& GetTime() const { return Time; } 
     bool SetupWindow();
 
-    const float& GetDpiScale() const { return DpiScaling; } 
-
-private:
-    bool InitImgui();
-
 public:
     // App Global Classes, can be accessed through G_MainWindow
     std::unique_ptr<class Renderer> RendererDX;
     std::unique_ptr<class USDScene> Scene;
     std::unique_ptr<class UIBase> UI;
-
-    // Imgui Globals
-    struct ImguiContext* Imgui_Context;
-    struct ImGuiIO* Imgui_Io;
     
 private:
-
     // Windows Ptrs
     HINSTANCE hInstance = nullptr;
     HWND hWnd = nullptr;
-
-    // UI General
-    float DpiScaling = 1.0f;
-    float ImguiUIScaling = 1.0f;
 
     // Timing
     double Time = 0.0;

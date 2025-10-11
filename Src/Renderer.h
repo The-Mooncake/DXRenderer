@@ -30,14 +30,7 @@ public:
 
     // Rendering Setup
     bool Setup();
-    
-    // Create/Clean/Resize RTs for the frame buffers
-    bool CreateFrameBuffers();
-    void CleanupFrameBuffers();
-    bool CreateDepthStencilResource();
-    void CleanupDepthStencilBuffer();
-    void ResizeFrameBuffers();
-    
+        
     // Main render loop.
     void Update();
     void Render();
@@ -60,6 +53,13 @@ private:
     void BeginFrame();
     void MidFrame();
     void EndFrame();
+
+    // Create/Clean/Resize RTs for the frame buffers
+    bool CreateFrameBuffers();
+    void CleanupFrameBuffers();
+    bool CreateDepthStencilResource();
+    void CleanupDepthStencilBuffer();
+    void ResizeFrameBuffers();
 
     //Utils
     bool SetupImguiRendering();
@@ -101,7 +101,7 @@ public:
     ComPtr<ID3D12GraphicsCommandList> CmdListMidFrame;
     ComPtr<ID3D12GraphicsCommandList> CmdListEndFrame;
 
-    std::vector<ID3D12CommandList*> Cmds; // The list in order of rendering commands. 
+    std::vector<ID3D12CommandList*> Cmds; // The list, in order, of rendering commands. 
     
     // Frame Buffers
     std::vector<ComPtr<ID3D12Resource>> FrameBuffers;
@@ -124,8 +124,7 @@ public:
     CB_WVP WVP; // World View Projection buffer.
 
     // Imgui
-    ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
-    std::shared_ptr<class UIBase> UiBase = nullptr;
+    ComPtr<ID3D12DescriptorHeap> ImguiSrvBufferHeap;
 
 private:
 

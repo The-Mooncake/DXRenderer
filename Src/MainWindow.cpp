@@ -4,9 +4,6 @@
 #include <cstdio>
 #include <tchar.h>
 #include <wrl.h> // ComPtr
-#include <iostream>
-#include <string>
-#include <format>
 
 // App
 #include "USDScene.h"
@@ -72,8 +69,8 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     case WM_SIZE:
         if (G_MainWindow->RendererDX->Device != nullptr && wParam != SIZE_MINIMIZED)
         {
-            const UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
-            const UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
+            const UINT Width = LOWORD(lParam);
+            const UINT Height = HIWORD(lParam);
             G_MainWindow->RendererDX->QueueResize(Width, Height);
             break;
         }        
@@ -133,7 +130,7 @@ bool MainWindow::SetupWindow()
         szTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        static_cast<int>(AdjustedWidth * DpiScaling), static_cast<int>(AdjustedHeight * DpiScaling),
+        static_cast<int>(AdjustedWidth), static_cast<int>(AdjustedHeight),
         nullptr,
         nullptr,
         hInstance,
@@ -154,58 +151,14 @@ bool MainWindow::SetupWindow()
     return bResult;
 }
 
-bool MainWindow::InitImgui()
-{
-    IMGUI_CHECKVERSION();
-    
-    ImGui_ImplWin32_EnableDpiAwareness();
-    DpiScaling = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
-    
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking support.
-    
-    ImGui::StyleColorsDark();
-    
-    // Setup scaling
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(DpiScaling * ImguiUIScaling); // Only for scaling ui not window mappings.
-    
-    // Setup Platform/Renderer backends
-    ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = RendererDX.get()->Device.Get();
-    init_info.CommandQueue = RendererDX.get()->CmdQueue.Get();
-    init_info.NumFramesInFlight = 1;
-    init_info.RTVFormat = RendererDX.get()->FrameBufferFormat; 
-    init_info.SrvDescriptorHeap = RendererDX.get()->SrvBufferHeap.Get();
-
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return ImguiHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
-    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return ImguiHeapAlloc.Free(cpu_handle, gpu_handle); };
-    if (!ImGui_ImplWin32_Init(hWnd))
-    {
-        MessageBoxW(nullptr, L"Failed to initialise ImGui Win32!", L"Error", MB_OK);
-        PostQuitMessage(1);
-        return false;
-    }
-    if (!ImGui_ImplDX12_Init(&init_info))
-    {
-        MessageBoxW(nullptr, L"Failed to Initialise ImGui DX12!", L"Error", MB_OK);
-        PostQuitMessage(1);
-        return false;
-    }
-    
-    return true;
-}
-
 int MainWindow::Run()
 {
     // Load the scene.
     Scene->LoadExampleCube();
     RendererDX->Setup();
 
-    if (!InitImgui()) { return 1;}
+    // Init UI.
+    if (!UI->InitImgui()) { return 1;}
     
     // Show, the window hidden by default.
     ShowWindow(hWnd, SW_SHOW);
@@ -229,13 +182,13 @@ int MainWindow::Run()
         }
         else
         {
-            //UI->RenderUI();
+            // Update the UI
+            UI->RenderUI();
             
             // Update renderer when no messages received...
             RendererDX->Update();
             RendererDX->Render();
         }
-    
     }
 
     return static_cast<int>(Msg.wParam);

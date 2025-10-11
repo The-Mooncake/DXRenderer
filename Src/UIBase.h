@@ -1,5 +1,10 @@
 #pragma once
 
+#include "ImGuiDescHeap.h"
+
+// ImGui rendering heap desc global.
+inline ImguiDescHeapAllocator ImguiHeapAlloc;
+
 enum class UIWindowFlags : int
 {
     None            = 0,
@@ -13,7 +18,10 @@ public:
     UIBase();
     
     void RenderUI();
-
+    bool InitImgui();
+    
+    const float& GetDpiScale() const { return DpiScaling; } 
+    
 private:
     // UI Functions
     void WindowMenuBar();
@@ -25,4 +33,7 @@ private:
 private:
     int WindowFlags = 0;
     
+    // UI Scaling
+    float DpiScaling = 1.0f;
+    float ImguiUIScaling = 1.0f;
 };

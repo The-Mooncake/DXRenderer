@@ -51,8 +51,6 @@ bool Renderer::Setup()
 {
     nvtx3::scoped_range r{ "Setup Renderer" };
 
-    UiBase = std::make_shared<UIBase>();
-
     CalculateAspectRatio();
     
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
@@ -193,8 +191,6 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.SampleDesc.Count = 1;      //multisampling setting
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     
-    // SWAP CHAIN WAS SCALING BACK BUFFERS TO FIT WINDOW SIZE - CAUSING IMGUI TO NOT LINE UP.
-    //SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
     if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
@@ -377,11 +373,13 @@ void Renderer::EndFrame()
 
     // Imgui Rendering
     CmdListEndFrame->BeginEvent(1, "ImGuiRendering", sizeof("ImGuiRendering"));
+
     SetBackBufferOM(CmdListEndFrame); // Imgui requires the output merger.
-    CmdListEndFrame->SetDescriptorHeaps(1, SrvBufferHeap.GetAddressOf());
+    CmdListEndFrame->SetDescriptorHeaps(1, ImguiSrvBufferHeap.GetAddressOf());
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
+
     CmdListEndFrame->EndEvent();
     
     // Indicate that the back buffer will be used to present.
@@ -410,10 +408,10 @@ bool Renderer::SetupImguiRendering()
     desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     desc.NumDescriptors = 64;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&SrvBufferHeap)) != S_OK)
+    if (Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&ImguiSrvBufferHeap)) != S_OK)
         return false;
-    ImguiHeapAlloc.Create(Device.Get(), SrvBufferHeap.Get());
-    SrvBufferHeap->SetName(L"Imgui-SrvBufferHeap");
+    ImguiHeapAlloc.Create(Device.Get(), ImguiSrvBufferHeap.Get());
+    ImguiSrvBufferHeap->SetName(L"Imgui-SrvBufferHeap");
     return true;
 }
 
@@ -529,8 +527,8 @@ void Renderer::ResizeFrameBuffers()
     if (!bDXReady) {return; }
     
     WaitForPreviousFrame();
-    Width = static_cast<UINT>(NewResizeWidth / G_MainWindow->GetDpiScale());
-    Height = static_cast<UINT>(NewResizeHeight / G_MainWindow->GetDpiScale());
+    Width = static_cast<UINT>(NewResizeWidth);
+    Height = static_cast<UINT>(NewResizeHeight);
     CalculateAspectRatio();
 
     // Adjust viewport for DpiScaling.
@@ -606,16 +604,6 @@ void Renderer::Update()
     // Update constant buffer.
     SMPipe->Update(WVP);
     
-    // Start the Dear ImGui frame
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-
-    // Set the display size to the window size.
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(static_cast<float>(Width), static_cast<float>(Height));
-
-    ImGui::NewFrame();
-    UiBase->RenderUI();
 }
 
 void Renderer::Render()
