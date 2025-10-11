@@ -2,11 +2,37 @@
 #include "imgui.h"
 #include "ImGuiDescHeap.h"
 
+UIBase::UIBase()
+{
+    WindowFlags |= static_cast<int>(UIWindowFlags::Overlay);
+}
+
+void UIBase::RenderUI()
+{
+    
+    
+    WindowMenuBar();
+    ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
+    
+    if (HasWindowFlag(UIWindowFlags::Overlay)) { ShowInfoOverlay(); }
+    if (HasWindowFlag(UIWindowFlags::DemoUI)) { ImGui::ShowDemoWindow(); }
+
+}
+
 void UIBase::WindowMenuBar()
 {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open", "Ctrl+O")) { 
+            if (ImGui::MenuItem("Open", "Ctrl+O")) {
+                // Open work here...
+            }
+            if (ImGui::MenuItem("Show Info Overlay", nullptr, HasWindowFlag(UIWindowFlags::Overlay)))
+            {
+                WindowFlags ^= static_cast<int>(UIWindowFlags::Overlay);
+            }
+            if (ImGui::MenuItem("Show Demo Window", nullptr, HasWindowFlag(UIWindowFlags::DemoUI)))
+            {
+                WindowFlags ^= static_cast<int>(UIWindowFlags::DemoUI);
             }
             if (ImGui::MenuItem("Exit")) {
                 PostQuitMessage(0);
@@ -72,5 +98,11 @@ void UIBase::ShowInfoOverlay()
         }
     }
     ImGui::End();
+}
+
+const bool UIBase::HasWindowFlag(UIWindowFlags Flag) const
+{
+    const int FlagValue = static_cast<int>(Flag);
+    return (WindowFlags & FlagValue) == FlagValue;
 }
 

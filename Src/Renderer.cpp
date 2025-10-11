@@ -51,6 +51,8 @@ bool Renderer::Setup()
 {
     nvtx3::scoped_range r{ "Setup Renderer" };
 
+    UiBase = std::make_shared<UIBase>();
+
     CalculateAspectRatio();
     
     if (!SetupDevice())                             { return false; } // return without setting bDXReady to true...
@@ -192,7 +194,7 @@ bool Renderer::SetupSwapChain()
     SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     
     // SWAP CHAIN WAS SCALING BACK BUFFERS TO FIT WINDOW SIZE - CAUSING IMGUI TO NOT LINE UP.
-    SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
+    //SwapChainDesc.Scaling = DXGI_SCALING_NONE; // Disabling scaling.
     if (!VSyncEnabled) { SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; }
     
     ComPtr<IDXGISwapChain1> BaseSwapChain;
@@ -374,12 +376,14 @@ void Renderer::EndFrame()
     CmdListEndFrame->SetName(L"CmdList-EndFrame");
 
     // Imgui Rendering
+    CmdListEndFrame->BeginEvent(1, "ImGuiRendering", sizeof("ImGuiRendering"));
     SetBackBufferOM(CmdListEndFrame); // Imgui requires the output merger.
     CmdListEndFrame->SetDescriptorHeaps(1, SrvBufferHeap.GetAddressOf());
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CmdListEndFrame.Get());    
-
+    CmdListEndFrame->EndEvent();
+    
     // Indicate that the back buffer will be used to present.
     D3D12_RESOURCE_BARRIER PresentBarrier;
     PresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -525,13 +529,13 @@ void Renderer::ResizeFrameBuffers()
     if (!bDXReady) {return; }
     
     WaitForPreviousFrame();
-    Width = NewResizeWidth;
-    Height = NewResizeHeight;
+    Width = static_cast<UINT>(NewResizeWidth / G_MainWindow->GetDpiScale());
+    Height = static_cast<UINT>(NewResizeHeight / G_MainWindow->GetDpiScale());
     CalculateAspectRatio();
 
     // Adjust viewport for DpiScaling.
-    Viewport.Width = NewResizeWidth / G_MainWindow->GetDpiScale();
-    Viewport.Height = NewResizeHeight / G_MainWindow->GetDpiScale();
+    Viewport.Width = Width;
+    Viewport.Height = Height;
 
     DXGI_SWAP_CHAIN_DESC desc = {};
     SwapChain->GetDesc(&desc);
@@ -606,15 +610,12 @@ void Renderer::Update()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
 
-    // Can't use frame buffer scaling to change drawing of imgui :/
-    // ImGui::GetIO().DisplayFramebufferScale = ImVec2(Width / io.DisplaySize.x, Height / io.DisplaySize.y);
-    // ImGuiIO& io = ImGui::GetIO();
-    // io.DisplayFramebufferScale = ImVec2(0.7f, 2.7f);
+    // Set the display size to the window size.
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(static_cast<float>(Width), static_cast<float>(Height));
 
     ImGui::NewFrame();
-    //ImGui::ShowDemoWindow(); // Show demo window! :)
-    UIBase::WindowMenuBar();
-    UIBase::ShowInfoOverlay();
+    UiBase->RenderUI();
 }
 
 void Renderer::Render()

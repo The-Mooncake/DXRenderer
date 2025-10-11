@@ -19,6 +19,7 @@
 
 using Microsoft::WRL::ComPtr; // Import only the ComPtr
 
+// ImGui helper
 inline ImguiDescHeapAllocator ImguiHeapAlloc;
 
 
@@ -47,6 +48,7 @@ public:
     // App Global Classes, can be accessed through G_MainWindow
     std::unique_ptr<class Renderer> RendererDX;
     std::unique_ptr<class USDScene> Scene;
+    std::unique_ptr<class UIBase> UI;
 
     // Imgui Globals
     struct ImguiContext* Imgui_Context;

@@ -11,6 +11,7 @@
 // App
 #include "USDScene.h"
 #include "Renderer.h"
+#include "UIBase.h"
 
 // D3D
 #include <d3dcommon.h>
@@ -34,6 +35,7 @@ MainWindow::MainWindow(HINSTANCE InHInstance)
 
     Scene = std::make_unique<USDScene>();
     RendererDX = std::make_unique<Renderer>();
+    UI = std::make_unique<UIBase>();
 }
 
 MainWindow::~MainWindow()
@@ -70,8 +72,8 @@ LRESULT CALLBACK MainWindow::WinProcedure(HWND hWnd, UINT message, WPARAM wParam
     case WM_SIZE:
         if (G_MainWindow->RendererDX->Device != nullptr && wParam != SIZE_MINIMIZED)
         {
-            UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
-            UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
+            const UINT Width = LOWORD(lParam) * G_MainWindow->DpiScaling;
+            const UINT Height = HIWORD(lParam) * G_MainWindow->DpiScaling;
             G_MainWindow->RendererDX->QueueResize(Width, Height);
             break;
         }        
@@ -227,6 +229,8 @@ int MainWindow::Run()
         }
         else
         {
+            //UI->RenderUI();
+            
             // Update renderer when no messages received...
             RendererDX->Update();
             RendererDX->Render();

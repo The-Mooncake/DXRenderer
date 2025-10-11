@@ -125,6 +125,7 @@ public:
 
     // Imgui
     ComPtr<ID3D12DescriptorHeap> SrvBufferHeap;
+    std::shared_ptr<class UIBase> UiBase = nullptr;
 
 private:
 
