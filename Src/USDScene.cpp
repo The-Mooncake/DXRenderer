@@ -1,8 +1,8 @@
 #include "USDScene.h"
 
 #include "RenderMesh.h"
+#include "Camera.h"
 #include <nvtx3/nvtx3.hpp>
-
 
 // USD
 #include <iostream>
@@ -17,6 +17,11 @@
 // Useful USD References: https://github.com/LittleCoinCoin/OpenUSD-setup-vcpkg-template/blob/main/OpenUSD-setup-vcpkg/src/main.cpp
 
 using namespace pxr;
+
+USDScene::USDScene()
+{
+    MainCamera = std::make_shared<Camera>();
+}
 
 void USDScene::LoadScene(const std::string& Path)
 {

@@ -19,9 +19,13 @@ namespace RendererAssets
 class USDScene
 {
 public:
+    USDScene();
+
     void LoadScene(const std::string& Path);
 
     const std::vector<std::shared_ptr<class RenderMesh>> GetMeshes() const { return Meshes; }
+    const std::shared_ptr<class Camera> GetCamera() const { return MainCamera; }
+    
     const bool IsYUp() const { return bIsYUp; }
     
     // Example files.
@@ -33,9 +37,12 @@ public:
     void LoadFaceAndTri() { LoadScene(RendererAssets::FaceAndTri); }
 
 private:
+    // USD Objects
     pxr::UsdStageRefPtr Stage;
 
+    // Render Scene Objects
     std::vector<std::shared_ptr<class RenderMesh>> Meshes;
-
+    std::shared_ptr<class Camera> MainCamera;
+    
     bool bIsYUp = true;
 };

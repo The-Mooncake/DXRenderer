@@ -27,6 +27,9 @@ private:
     void WindowMenuBar();
     void ShowInfoOverlay();
 
+    // UX Functions
+    void ViewportDrag();
+
     // UI Helpers
     const bool HasWindowFlag(UIWindowFlags Flag) const;
     

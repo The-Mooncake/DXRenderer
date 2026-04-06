@@ -1,4 +1,6 @@
 #include "UIBase.h"
+
+#include "Camera.h"
 #include "imgui.h"
 #include "ImGuiDescHeap.h"
 #include "imgui_impl_win32.h"
@@ -6,6 +8,7 @@
 #include "MainWindow.h"
 #include "Renderer.h"
 #include "pch.h"
+#include "USDScene.h"
 
 UIBase::UIBase()
 {
@@ -72,6 +75,8 @@ void UIBase::RenderUI()
         static_cast<float>(G_MainWindow->RendererDX->Height) );
 
     ImGui::NewFrame();
+
+    ViewportDrag();
 
     // Start drawing UI
     ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -161,6 +166,39 @@ void UIBase::ShowInfoOverlay()
         }
     }
     ImGui::End();
+}
+
+void UIBase::ViewportDrag()
+{
+    const bool bActive = ImGui::IsAnyItemActive() || ImGui::IsAnyItemHovered() || ImGui::IsAnyItemFocused();
+
+    std::shared_ptr<Camera> Cam = G_MainWindow->Scene.get()->GetCamera();
+    
+    if (!bActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+    {
+        // Rotate
+        const float X = ImGui::GetIO().MouseDelta.x;
+        const float Y = ImGui::GetIO().MouseDelta.y;
+        Cam.get()->Rotate(X, Y);
+    }
+
+    if (!bActive && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+    {
+        //Pan
+        const float X = ImGui::GetIO().MouseDelta.x;
+        const float Y = ImGui::GetIO().MouseDelta.y;
+        Cam.get()->Pan(-X, -Y);   
+    }
+
+    if (!bActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+    {
+        //Zoom
+        const float X = ImGui::GetIO().MouseDelta.x;
+        const float Y = ImGui::GetIO().MouseDelta.y;
+
+        float ZoomValue = std::abs(X) > std::abs(Y) ? X : -Y;
+        Cam.get()->Zoom(ZoomValue);
+    }
 }
 
 const bool UIBase::HasWindowFlag(UIWindowFlags Flag) const

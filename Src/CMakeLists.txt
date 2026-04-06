@@ -12,6 +12,7 @@ set(Header_Files
     "RenderMesh.h"
     "StaticMeshPipeline.h"
     "UIBase.h"
+    "Camera.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -24,6 +25,7 @@ set(Source_Files
     "RenderMesh.cpp"
     "StaticMeshPipeline.cpp"
     "UIBase.cpp"
+    "Camera.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 

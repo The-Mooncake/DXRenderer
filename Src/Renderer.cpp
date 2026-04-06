@@ -16,7 +16,9 @@
 #include "ImGuiDescHeap.h"
 
 // UI
+#include "Camera.h"
 #include "UIBase.h"
+#include "USDScene.h"
 
 
 // Define SDK version.
@@ -594,13 +596,10 @@ void Renderer::Update()
     XMMATRIX Rot = DirectX::XMMatrixRotationY(static_cast<float>(G_MainWindow->GetTime()));
     WVP.ModelMatrix = DirectX::XMMatrixMultiply(Model, Rot);
     WVP.ModelMatrix = DirectX::XMMatrixTranspose(WVP.ModelMatrix);
+
+    std::shared_ptr<Camera> Cam = G_MainWindow->Scene.get()->GetCamera();
+    Cam->UpdateWVP(WVP);
     
-    WVP.ViewMatrix = DirectX::XMMatrixLookAtRH({0, 0, -2, 0}, {0, 0, 0, 0}, {0, 1, 0, 0}); // Y is up.
-    WVP.ViewMatrix = DirectX::XMMatrixTranspose(WVP.ViewMatrix);
-
-    WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(FieldOfView), AspectRatio, NearPlane, FarPlane);
-    WVP.ProjectionMatrix = DirectX::XMMatrixTranspose(WVP.ProjectionMatrix);
-
     // Update constant buffer.
     SMPipe->Update(WVP);
     
