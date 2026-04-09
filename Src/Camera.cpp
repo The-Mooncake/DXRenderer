@@ -9,12 +9,12 @@ using namespace DirectX;
 void Camera::UpdateWVP(CB_WVP& WVP) const
 {
     // Using Left handed coordinate systems, but matrices need to be transposed for hlsl.
-    WVP.ViewMatrix = DirectX::XMMatrixLookAtRH(Position, FocusPosition, UpAxis); 
-    WVP.ViewMatrix = DirectX::XMMatrixTranspose(WVP.ViewMatrix);
+    WVP.ViewMatrix = XMMatrixLookAtRH(Position, FocusPosition, UpAxis); 
+    WVP.ViewMatrix = XMMatrixTranspose(WVP.ViewMatrix);
 
     float AR = G_MainWindow->RendererDX->AspectRatio;
-    WVP.ProjectionMatrix = DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(FieldOfView), AR, NearPlane, FarPlane);
-    WVP.ProjectionMatrix = DirectX::XMMatrixTranspose(WVP.ProjectionMatrix);
+    WVP.ProjectionMatrix = XMMatrixPerspectiveFovRH(XMConvertToRadians(FieldOfView), AR, NearPlane, FarPlane);
+    WVP.ProjectionMatrix = XMMatrixTranspose(WVP.ProjectionMatrix);
 }
 
 void Camera::Rotate(float X, float Y)
@@ -26,7 +26,7 @@ void Camera::Rotate(float X, float Y)
 
     // Limit to stop flipping/flickering when at axis
     const float ViewDirY = XMVectorGetY(ViewDir);
-    if (ViewDirY <  -0.9f && Y >= 0.0f || ViewDirY > 0.9f && Y <= 0.0f)
+    if (ViewDirY <  -0.95f && Y >= 0.0f || ViewDirY > 0.95f && Y <= 0.0f)
     {
         return;
     }
@@ -46,8 +46,8 @@ void Camera::Translate(float X, float Y, float Z)
     Y *= TranslateScale;
     Z *= TranslateScale;
     
-    DirectX::XMVECTOR Offset = DirectX::XMVECTOR{X, Y, Z};
-    Position = DirectX::XMVectorAdd(Position, Offset);
+    XMVECTOR Offset = XMVECTOR{X, Y, Z};
+    Position = XMVectorAdd(Position, Offset);
 }
 
 void Camera::Pan(float X, float Y)
@@ -55,25 +55,25 @@ void Camera::Pan(float X, float Y)
     X *= TranslateScale;
     Y *= TranslateScale;
     
-    DirectX::XMVECTOR ViewDir = GetViewDirection();
-    DirectX::XMVECTOR RightVector = DirectX::XMVector3Cross(ViewDir, DirectX::XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f));
-    DirectX::XMVECTOR UpVector = DirectX::XMVector3Cross(ViewDir, RightVector);
+    XMVECTOR ViewDir = GetViewDirection();
+    XMVECTOR RightVector = XMVector3Cross(ViewDir, XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f));
+    XMVECTOR UpVector = XMVector3Cross(ViewDir, RightVector);
 
-    DirectX::XMVECTOR ViewOffset = DirectX::XMVectorAdd(DirectX::XMVectorScale(RightVector, X), DirectX::XMVectorScale(UpVector, Y));
-    Position = DirectX::XMVectorAdd(Position, ViewOffset);
-    FocusPosition = DirectX::XMVectorAdd(FocusPosition, ViewOffset);
+    XMVECTOR ViewOffset = XMVectorAdd(XMVectorScale(RightVector, X), XMVectorScale(UpVector, Y));
+    Position = XMVectorAdd(Position, ViewOffset);
+    FocusPosition = XMVectorAdd(FocusPosition, ViewOffset);
 }
 
 void Camera::Zoom(float Zoom)
 {
     Zoom *= TranslateScale;
-    DirectX::XMVECTOR Offset = DirectX::XMVectorScale(GetViewDirection(), Zoom);
-    Position = DirectX::XMVectorAdd(Position, Offset);
+    XMVECTOR Offset = XMVectorScale(GetViewDirection(), Zoom);
+    Position = XMVectorAdd(Position, Offset);
 }
 
-DirectX::XMVECTOR Camera::GetViewDirection() const
+XMVECTOR Camera::GetViewDirection() const
 {
-    return  DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(FocusPosition, Position));
+    return  XMVector3Normalize(XMVectorSubtract(FocusPosition, Position));
 }
 
 
