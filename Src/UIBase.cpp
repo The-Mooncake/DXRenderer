@@ -1,14 +1,23 @@
 #include "UIBase.h"
 
+// Project Includes
+#include "pch.h"
 #include "Camera.h"
+#include "Renderer.h"
+#include "MainWindow.h"
+#include "USDScene.h"
+
+// ImGui 
 #include "imgui.h"
 #include "ImGuiDescHeap.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
-#include "MainWindow.h"
-#include "Renderer.h"
-#include "pch.h"
-#include "USDScene.h"
+
+// Windows - Open File Dialog
+#include <Windows.h>
+#include <string>
+#include <shobjidl.h>
+#include <shobjidl_core.h>
 
 UIBase::UIBase()
 {
@@ -93,6 +102,7 @@ void UIBase::WindowMenuBar()
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
                 // Open work here...
+                OpenSceneBrowser();
             }
             if (ImGui::MenuItem("Show Info Overlay", nullptr, HasWindowFlag(UIWindowFlags::Overlay)))
             {
@@ -199,6 +209,119 @@ void UIBase::ViewportDrag()
         float ZoomValue = std::abs(X) > std::abs(Y) ? X : -Y;
         Cam.get()->Zoom(ZoomValue);
     }
+}
+
+bool UIBase::OpenSceneBrowser()
+{
+    // Taken from Microsoft and github examples
+    
+    std::string SelectedFile;
+    std::string SelectedPath;
+
+    //  CREATE FILE OBJECT INSTANCE
+    HRESULT HR = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(HR))
+        return FALSE;
+
+    // CREATE FileOpenDialog OBJECT
+    IFileOpenDialog* FileOpenDialog;
+    HR = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&FileOpenDialog));
+    if (FAILED(HR)) {
+        CoUninitialize();
+        return FALSE;
+    }
+
+    DWORD DialogFlags;
+    if (FAILED(FileOpenDialog->GetOptions(&DialogFlags)))
+    {
+        CoUninitialize();
+        return FALSE;
+    }
+
+    if (FAILED(FileOpenDialog->SetOptions(DialogFlags | FOS_FORCEFILESYSTEM)))
+    {
+        CoUninitialize();
+        return FALSE;
+    }
+
+    const COMDLG_FILTERSPEC SupportedFileTypes[] =
+    {
+            {L"USD Asci (*.usda)",       L"*.usda"},
+            {L"USD Binary (*.usd)",    L"*.usd"},
+            {L"All Documents (*.*)",         L"*.*"}
+    };
+
+    if (FAILED(FileOpenDialog->SetFileTypes(ARRAYSIZE(SupportedFileTypes), SupportedFileTypes)))
+    {
+        CoUninitialize();
+        return FALSE;
+    }
+
+    if (FAILED(FileOpenDialog->SetDefaultExtension(L"usda")))
+    {
+        CoUninitialize();
+        return FALSE;
+    }
+    
+    IShellItem *DefaultFolder = NULL;
+    LPCTSTR DefaultFolderPath = L"C:\\Users\\olive\\Documents\\DXRenderer\\Meshes"; // Very Hard Coded!
+    if (SUCCEEDED(SHCreateItemFromParsingName(DefaultFolderPath, NULL, IID_PPV_ARGS(&DefaultFolder))))
+    {
+        if (FAILED(FileOpenDialog->SetFolder(DefaultFolder)))
+        {
+            CoUninitialize();
+            return FALSE;
+        }
+    }
+    
+    //  SHOW OPEN FILE DIALOG WINDOW
+    HR = FileOpenDialog->Show(NULL);
+    if (FAILED(HR)) {
+        FileOpenDialog->Release();
+        CoUninitialize();
+        return FALSE;
+    }
+
+    //  RETRIEVE FILE NAME FROM THE SELECTED ITEM
+    IShellItem* SelectedFiles;
+    HR = FileOpenDialog->GetResult(&SelectedFiles);
+    if (FAILED(HR)) {
+        FileOpenDialog->Release();
+        CoUninitialize();
+        return FALSE;
+    }
+
+    //  STORE AND CONVERT THE FILE NAME
+    PWSTR SelectedPaths;
+    HR = SelectedFiles->GetDisplayName(SIGDN_FILESYSPATH, &SelectedPaths);
+    if (FAILED(HR)) {
+        SelectedFiles->Release();
+        FileOpenDialog->Release();
+        CoUninitialize();
+        return FALSE;
+    }
+
+    //  FORMAT AND STORE THE FILE PATH
+    std::wstring Path(SelectedPaths);
+    std::string Conversion(Path.begin(), Path.end());
+    SelectedPath = Conversion;
+
+    //  FORMAT STRING FOR EXECUTABLE NAME
+    const size_t slash = SelectedPath.find_last_of("/\\");
+    SelectedFile = SelectedPath.substr(slash + 1);
+
+    //  SUCCESS, CLEAN UP
+    CoTaskMemFree(SelectedPaths);
+    SelectedFiles->Release();
+    FileOpenDialog->Release();
+    CoUninitialize();
+
+    // Open Scene
+    G_MainWindow->Scene->ClearScene();
+    G_MainWindow->Scene->LoadScene(SelectedPath);
+    G_MainWindow->RendererDX->SMPipe->ResetScene();
+    
+    return TRUE;
 }
 
 const bool UIBase::HasWindowFlag(UIWindowFlags Flag) const

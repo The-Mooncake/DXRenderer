@@ -63,3 +63,9 @@ void USDScene::LoadScene(const std::string& Path)
         }
     }
 }
+
+void USDScene::ClearScene()
+{
+    Stage.Reset();
+    Meshes.clear();
+}

@@ -26,9 +26,12 @@ private:
     // UI Functions
     void WindowMenuBar();
     void ShowInfoOverlay();
-
+    
     // UX Functions
     void ViewportDrag();
+
+    // Change Scene
+    bool OpenSceneBrowser();
 
     // UI Helpers
     const bool HasWindowFlag(UIWindowFlags Flag) const;

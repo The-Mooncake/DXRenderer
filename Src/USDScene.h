@@ -22,6 +22,7 @@ public:
     USDScene();
 
     void LoadScene(const std::string& Path);
+    void ClearScene();
 
     const std::vector<std::shared_ptr<class RenderMesh>> GetMeshes() const { return Meshes; }
     const std::shared_ptr<class Camera> GetCamera() const { return MainCamera; }

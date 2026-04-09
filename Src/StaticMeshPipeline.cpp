@@ -104,6 +104,15 @@ inline void StaticMeshPipeline::ProcessScene()
     CurrentMesh = RMesh->GetMeshData();
 }
 
+void StaticMeshPipeline::ResetScene()
+{
+    IndexBuffer.Reset();
+    VertexBuffer.Reset();
+    ProcessScene();
+    SetupIndexBuffer();
+    SetupVertexBuffer();
+}
+
 void StaticMeshPipeline::Update(const CB_WVP& WVP)
 {
     D3D12_RANGE ReadRange;

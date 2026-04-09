@@ -19,6 +19,7 @@ public:
     ComPtr<ID3D12GraphicsCommandList> PopulateCmdList();
 
     void Update(const CB_WVP& WVP);
+    void ResetScene();
 
 private:
     void ProcessScene();

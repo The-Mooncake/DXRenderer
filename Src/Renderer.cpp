@@ -609,6 +609,11 @@ void Renderer::Render()
 {
     nvtx3::scoped_range r("Render Tick");
 
+    if (bRendererPaused)
+    {
+        return;
+    }
+
     HRESULT HR;
 
     if (bResizeQueued) { ResizeFrameBuffers(); }

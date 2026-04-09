@@ -67,6 +67,9 @@ private:
     void CalculateAspectRatio() { AspectRatio = static_cast<float>(Width) / static_cast<float>(Height); };
 
 public:
+    // Renderer Paused
+    bool bRendererPaused = false;
+    
     // Pipelines
     std::unique_ptr<class StaticMeshPipeline> SMPipe;
 
