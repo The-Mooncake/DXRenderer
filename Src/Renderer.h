@@ -79,10 +79,7 @@ public:
     // Window and Viewport Properties
     UINT Width = 800;
     UINT Height = 600;
-    float NearPlane = 0.01f; // Can't be zero for depth buffer.
-    float FarPlane = 100.0f;
 
-    float FieldOfView = 45.0;
     float AspectRatio = 1.0f; // Gets calculated on init.
  
     float MaxDepth = 1.0f;
