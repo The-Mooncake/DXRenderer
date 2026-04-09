@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "Renderer.h"
 
+using namespace DirectX;
 
 void Camera::UpdateWVP(CB_WVP& WVP) const
 {
@@ -21,9 +22,22 @@ void Camera::Rotate(float X, float Y)
     X *= RotationScale;
     Y *= RotationScale;
     
-    DirectX::XMVECTOR RotationOffset{0.0f, X, Y};
-    RotationOffset = DirectX::XMQuaternionRotationRollPitchYawFromVector(RotationOffset);
-    Position = DirectX::XMVector3Rotate(Position, RotationOffset);
+    const XMVECTOR ViewDir = GetViewDirection();
+
+    // Limit to stop flipping/flickering when at axis
+    const float ViewDirY = XMVectorGetY(ViewDir);
+    if (ViewDirY <  -0.9f && Y >= 0.0f || ViewDirY > 0.9f && Y <= 0.0f)
+    {
+        return;
+    }
+
+    constexpr XMVECTOR UpAxis{0.0f, 1.0f, 0.0f};
+    XMVECTOR RotationAxis = XMVector3Cross(UpAxis, ViewDir);
+    XMVECTOR PitchQuat = XMQuaternionRotationAxis(RotationAxis, Y);    
+    XMVECTOR YawQuat = XMQuaternionRotationAxis(UpAxis, X);
+    XMVECTOR RotationOffset = XMQuaternionMultiply(PitchQuat, YawQuat);
+    RotationOffset = XMQuaternionNormalize(RotationOffset);
+    Position = XMVector3Rotate(Position, RotationOffset);
 }
 
 void Camera::Translate(float X, float Y, float Z)
@@ -52,6 +66,7 @@ void Camera::Pan(float X, float Y)
 
 void Camera::Zoom(float Zoom)
 {
+    Zoom *= TranslateScale;
     DirectX::XMVECTOR Offset = DirectX::XMVectorScale(GetViewDirection(), Zoom);
     Position = DirectX::XMVectorAdd(Position, Offset);
 }
