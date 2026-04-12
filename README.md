@@ -3,7 +3,13 @@ The objective of this is to get used to more modern graphics pipelines and to ex
 
 I used many different resources available online, these are referenced in 'Renderer.cpp'. Individual releases can be found in the Tags section.
 
-Latest release is "v2" which adds USD geometry support and renders a rotating cube.
+Latest release is "v3.0" and implements ImGui, a Camera setup and loading of different supported USD scenes.
+
+<img width="1914" height="1134" alt="image" src="https://github.com/user-attachments/assets/b38949b4-967e-41ed-8a0c-288d79e1db7f" />
+
+
+
+"v2" adds USD geometry support and renders a rotating cube.
 
 https://github.com/user-attachments/assets/e93734a7-00d3-4264-9780-d15eefba2144
 
