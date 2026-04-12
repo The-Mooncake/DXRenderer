@@ -194,7 +194,7 @@ void UIBase::ViewportDrag()
 
     if (!bActive && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
     {
-        //Pan
+        // Pan
         const float X = ImGui::GetIO().MouseDelta.x;
         const float Y = ImGui::GetIO().MouseDelta.y;
         Cam.get()->Pan(-X, -Y);   
@@ -202,7 +202,7 @@ void UIBase::ViewportDrag()
 
     if (!bActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
     {
-        //Zoom
+        // Zoom
         const float X = ImGui::GetIO().MouseDelta.x;
         const float Y = ImGui::GetIO().MouseDelta.y;
 
@@ -246,6 +246,7 @@ bool UIBase::OpenSceneBrowser()
 
     const COMDLG_FILTERSPEC SupportedFileTypes[] =
     {
+            {L"USD (*.usda|*.usd)",       L"*.usda;*.usd"},
             {L"USD Asci (*.usda)",       L"*.usda"},
             {L"USD Binary (*.usd)",    L"*.usd"},
             {L"All Documents (*.*)",         L"*.*"}
@@ -257,7 +258,7 @@ bool UIBase::OpenSceneBrowser()
         return FALSE;
     }
 
-    if (FAILED(FileOpenDialog->SetDefaultExtension(L"usda")))
+    if (FAILED(FileOpenDialog->SetDefaultExtension(L"usda;usd")))
     {
         CoUninitialize();
         return FALSE;

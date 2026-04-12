@@ -34,7 +34,7 @@ void Camera::Rotate(float X, float Y)
     constexpr XMVECTOR UpAxis{0.0f, 1.0f, 0.0f};
     XMVECTOR RotationAxis = XMVector3Cross(UpAxis, ViewDir);
     XMVECTOR PitchQuat = XMQuaternionRotationAxis(RotationAxis, Y);    
-    XMVECTOR YawQuat = XMQuaternionRotationAxis(UpAxis, X);
+    XMVECTOR YawQuat = XMQuaternionRotationAxis(UpAxis, -X);
     XMVECTOR RotationOffset = XMQuaternionMultiply(PitchQuat, YawQuat);
     RotationOffset = XMQuaternionNormalize(RotationOffset);
     Position = XMVector3Rotate(Position, RotationOffset);
